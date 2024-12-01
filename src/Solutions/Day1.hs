@@ -31,6 +31,7 @@ part1 input = sum $ abs <$> zipWith (-) l2 l1
   where (l1, l2) = convetToSeparateLists input
 
 
+part2 :: [(Integer, Integer)] -> Integer
 part2 input = sum $ map (\x -> x * M.findWithDefault 0 x freqMap) l1
   where (l1, l2) = convetToSeparateLists input
         freqMap = freqs l2
