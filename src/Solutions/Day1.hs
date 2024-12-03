@@ -28,15 +28,15 @@ parseInput = do
 
 part1 :: [(Integer, Integer)] -> Integer
 part1 input = sum $ abs <$> zipWith (-) l2 l1
-  where (l1, l2) = convetToSeparateLists input
+  where (l1, l2) = convertToSeparateLists input
 
 
 part2 :: [(Integer, Integer)] -> Integer
 part2 input = sum $ map (\x -> x * M.findWithDefault 0 x freqMap) l1
-  where (l1, l2) = convetToSeparateLists input
+  where (l1, l2) = convertToSeparateLists input
         freqMap = freqs l2
 
-convetToSeparateLists :: [(Integer, Integer)] -> ([Integer], [Integer])
-convetToSeparateLists input = (l1, l2)
+convertToSeparateLists :: [(Integer, Integer)] -> ([Integer], [Integer])
+convertToSeparateLists input = (l1, l2)
   where l1 = sort $ map fst input
         l2 = sort $ map snd input
