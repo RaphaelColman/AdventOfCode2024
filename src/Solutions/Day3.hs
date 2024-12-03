@@ -60,10 +60,10 @@ parseEnabled = do
   try (string "do()" $> Enable True) <|> try (string "don't()" $> Enable False)
 
 part1 :: [Instruction] -> Integer
-part1 input = solve justMuls
+part1 = solve . justMuls
   where justMuls = filter (\case
                         Mul _ _ -> True
-                        Enable _ -> False) input
+                        Enable _ -> False)
 
 part2 :: [Instruction] -> Integer
 part2 = solve
