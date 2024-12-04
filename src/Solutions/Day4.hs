@@ -12,7 +12,6 @@ import           Data.Function           (on)
 import           Data.List               (maximumBy, transpose)
 import qualified Data.Map                as M
 import qualified Data.Set                as S
-import           Debug.Trace
 import           Linear                  (unit)
 import           Linear.V2               (R1 (_x), R2 (_y), V2 (..))
 import           Text.Parser.Char        (CharParsing (anyChar))
@@ -21,25 +20,28 @@ import           Text.Trifecta           (Parser)
 
 aoc4 :: IO ()
 aoc4 = do
-  --printSolutions 4 $ MkAoCSolution parseInput part1
-  printTestSolutions 4 $ MkAoCSolution parseInput part2
+  printSolutions 4 $ MkAoCSolution parseInput part1
+  printSolutions 4 $ MkAoCSolution parseInput part2
 
 parseInput :: Parser (Grid Char)
 parseInput = enumerateMultilineStringToVectorMap <$> some anyChar
 
+part1 :: M.Map Point Char -> Int
 part1 input = length $ filter (== "XMAS") strs
   where allXs = M.keys $ M.filter (== 'X') input
         strs = concatMap (exploreAllDirections input) allXs
 
 
-part2 input = hits
+part2 :: M.Map Point Char -> Int
+part2 input = length f
   where allAs = M.keys $ M.filter (== 'A') input
-        strs = map (getImmediateDiagonals input) allAs
-        hits = filter (\s -> s `elem` ["MSSM", "MMSS", "SSMM", "MSSM"]) strs
+        f = M.filterWithKey (\k a -> a == 'A' && isValidXmas input k) input
 
 
-diagonals :: Grid a -> [[a]]
-diagonals grid = undefined
+isValidXmas :: Grid Char -> Point -> Bool
+isValidXmas grid point = diags `elem` ["MSSM", "MMSS", "SSMM", "SMMS"]
+  where diags = getImmediateDiagonals grid point
+        
 
 
 travel :: Grid a -> Int -> Point -> Direction -> [a]
@@ -67,6 +69,3 @@ directionToUnitVector NorthEast = V2 1 (-1)
 directionToUnitVector NorthWest = V2 (-1) (-1)
 directionToUnitVector SouthEast = V2 1 1
 directionToUnitVector SouthWest = V2 (-1) 1
-
--- (2,1) is a x-mas
--- will make "ASAMASAM" in order
