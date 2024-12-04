@@ -8,6 +8,9 @@ import           Common.AoCSolutions     (AoCSolution (MkAoCSolution),
 import           Common.Geometry         (Grid, Point,
                                           enumerateMultilineStringToVectorMap)
 import           Control.Lens            ((^.))
+import           Control.Monad.Reader    (Reader, ReaderT (runReaderT), asks,
+                                          filterM, runReader)
+import           Control.Monad.RWS       (MonadReader (ask))
 import           Data.Function           (on)
 import           Data.List               (maximumBy, transpose)
 import qualified Data.Map                as M
@@ -27,45 +30,49 @@ parseInput :: Parser (Grid Char)
 parseInput = enumerateMultilineStringToVectorMap <$> some anyChar
 
 part1 :: M.Map Point Char -> Int
-part1 input = length $ filter (== "XMAS") strs
-  where allXs = M.keys $ M.filter (== 'X') input
-        strs = concatMap (exploreAllDirections input) allXs
-
+part1 input = flip runReader input $ do
+  let allXs = M.keys $ M.filter (== 'X') input
+  strs <- concat <$> traverse exploreAllDirections allXs
+  pure $ length $ filter (== "XMAS") strs
 
 part2 :: M.Map Point Char -> Int
-part2 input = length f
-  where allAs = M.keys $ M.filter (== 'A') input
-        f = M.filterWithKey (\k a -> a == 'A' && isValidXmas input k) input
+part2 input = flip runReader input $ do
+  let allAs = M.keys $ M.filter (== 'A') input
+  length <$> filterM isValidXmas allAs
 
 
-isValidXmas :: Grid Char -> Point -> Bool
-isValidXmas grid point = diags `elem` ["MSSM", "MMSS", "SSMM", "SMMS"]
-  where diags = getImmediateDiagonals grid point
-        
+isValidXmas :: Point -> Reader (Grid Char) Bool
+isValidXmas point = do
+  diags <- getImmediateDiagonals point
+  pure $ diags `elem` ["MSSM", "MMSS", "SSMM", "SMMS"]
 
 
-travel :: Grid a -> Int -> Point -> Direction -> [a]
-travel grid amount point direction = map (grid M.!) r
-  where points = take amount $ iterate (+ directionToUnitVector direction) point
-        r = filter (`M.member` grid) points
+travel :: Int -> Point -> Direction -> Reader (Grid Char) [Char]
+travel amount point direction = do
+  grid <- ask
+  let points = take amount $ iterate (+ directionToUnitVector direction) point
+  let r = filter (`M.member` grid) points
+  pure $ map (grid M.!) r
 
 
-exploreAllDirections :: Grid a -> Point -> [[a]]
-exploreAllDirections grid p = map (travel grid 4 p) [North .. SouthWest]
+exploreAllDirections :: Point -> Reader (Grid Char) [[Char]]
+exploreAllDirections p = traverse (travel 4 p) [North .. SouthWest]
 
-getImmediateDiagonals :: Grid a -> Point -> [a]
-getImmediateDiagonals grid p = map (grid M.!) pts
-  where pts = filter (`M.member` grid) $ map ((+ p) . directionToUnitVector) [NorthWest .. SouthWest] 
+getImmediateDiagonals :: Point -> Reader (Grid Char) [Char]
+getImmediateDiagonals p = do
+  grid <- ask
+  let pts = filter (`M.member` grid) $ map ((+ p) . directionToUnitVector) [NorthWest .. SouthWest]
+  pure $ map (grid M.!) pts
 
 data Direction = North | South | East | West | NorthWest | NorthEast | SouthEast | SouthWest
   deriving (Bounded, Enum, Eq, Show)
 
 directionToUnitVector :: Direction -> V2 Int
-directionToUnitVector North     = V2 0 (-1)
-directionToUnitVector South     = V2 0 1
-directionToUnitVector East      = V2 1 0
-directionToUnitVector West      = V2 (-1) 0
-directionToUnitVector NorthEast = V2 1 (-1)
-directionToUnitVector NorthWest = V2 (-1) (-1)
-directionToUnitVector SouthEast = V2 1 1
-directionToUnitVector SouthWest = V2 (-1) 1
+directionToUnitVector North     = -(unit _y)
+directionToUnitVector South     = unit _y
+directionToUnitVector East      = unit _x
+directionToUnitVector West      = -(unit _x)
+directionToUnitVector NorthEast = directionToUnitVector North + directionToUnitVector East
+directionToUnitVector NorthWest = directionToUnitVector North + directionToUnitVector West
+directionToUnitVector SouthEast = directionToUnitVector South + directionToUnitVector East
+directionToUnitVector SouthWest = directionToUnitVector South + directionToUnitVector West
