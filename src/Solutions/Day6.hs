@@ -22,6 +22,8 @@ import Debug.Trace
 import Linear (unit)
 import Linear.V2 (R1 (_x), R2 (_y), V2 (..))
 import Text.Trifecta (Parser, anyChar, some)
+import Common.Floyd (hareAndTortoiseWithTermination, CycleData)
+import Common.Debugging
 
 data State = MkState
   { _guard :: !(V2 Int),
@@ -36,9 +38,8 @@ data Direction = North | East | South | West
 
 aoc6 :: IO ()
 aoc6 = do
-  printSolutions 6 $ MkAoCSolution parseInput part1
-
--- printSolutions 6 $ MkAoCSolution parseInput part2
+  --printSolutions 6 $ MkAoCSolution parseInput part1
+  printTestSolutions 6 $ MkAoCSolution parseInput part2
 
 parseInput :: Parser (Grid Char)
 parseInput = do
@@ -48,8 +49,10 @@ part1 input = numberOfDistinctGuardPositions $ runMachine state
   where
     state = initState input
 
--- part2 :: String -> String
--- part2 = undefined
+--Dang this goes forever at the moment
+part2 input = testCycleDetection state
+  where
+    state = initState input
 
 initState :: Grid Char -> State
 initState grid = MkState guard North obstacles (V2 xMax yMax)
@@ -86,8 +89,21 @@ numberOfDistinctGuardPositions state = length $ nub $ map _guard state
   where
     allPositions = nub $ map _guard state
 
+addObstacle :: State -> Point -> State
+addObstacle s@MkState{..} point = s { _obstacles = S.insert point _obstacles }
+
+enumeratePossibleStartingStates :: State -> [State]
+enumeratePossibleStartingStates s@MkState{..} = map (addObstacle s) locations
+  where locations = [V2 x y | x <- [0.._grid ^. _x], y <- [0.._grid ^. _y]]
+
 directionToUnitVector :: Direction -> V2 Int
 directionToUnitVector North = -(unit _y)
 directionToUnitVector South = unit _y
 directionToUnitVector East = unit _x
 directionToUnitVector West = -(unit _x)
+
+--Test adding an obstacle at (4,9) which should cause a cycle
+testCycleDetection :: State -> Maybe (CycleData State)
+testCycleDetection s = hareAndTortoiseWithTermination stepState withObstacle id (not . isInBounds)
+  where withObstacle = addObstacle s (V2 4 9)
+        h = hareAndTortoiseWithTermination stepState withObstacle id (not . isInBounds)

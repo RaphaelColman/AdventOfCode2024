@@ -1,34 +1,64 @@
 {-# LANGUAGE TemplateHaskell #-}
+
 module Common.Floyd where
-import           Common.ListUtils (dropUntil)
-import           Control.Lens     (makeLenses)
-import           Data.Foldable    (find)
-import           Data.List        (elemIndex)
-import           GHC.OldList      (findIndex)
+
+import Common.ListUtils (dropUntil)
+import Control.Lens (makeLenses)
+import Data.Foldable (find)
+import Data.List (elemIndex)
 import Debug.Trace (traceM)
+import GHC.OldList (findIndex)
 
 data CycleData a
   = MkCycleData
-      { _index  :: !Int
-      , _length :: !Int
-      , _node   :: !a
-      }
+  { _index :: !Int,
+    _length :: !Int,
+    _node :: !a
+  }
   deriving (Eq, Show)
 
 makeLenses ''CycleData
 
-hareAndTortoise :: (Eq b) =>
-  (a -> a) -> --Function move from one node to the next
-  a -> --Initial state
-  (a -> b) -> --Function to compare if two nodes are equal
+hareAndTortoise ::
+  (Eq b) =>
+  (a -> a) -> -- Function move from one node to the next
+  a -> -- Initial state
+  (a -> b) -> -- Function to compare if two nodes are equal
   Maybe (CycleData a)
 hareAndTortoise f start eqFun = do
   let hare = drop 1 $ iterate (f . f) start
   let tortoise = drop 1 $ iterate f start
   let pairs = zip hare tortoise
-  (t, h) <- find (uncurry areEqual) pairs --This will go forever unless I impose a limit of some sort
-  (startIndex, (t', _)) <- find (\(_, y) -> uncurry areEqual y) $ zip [0..] $ zip (iterate f start) (iterate f h)
-  length <- findIndex (areEqual t') $ drop 1 $ iterate f t' --This will be too low by 1 because I had to drop the first element
+  (t, h) <- find (uncurry areEqual) pairs -- This will go forever unless I impose a limit of some sort
+  (startIndex, (t', _)) <- find (\(_, y) -> uncurry areEqual y) $ zip [0 ..] $ zip (iterate f start) (iterate f h)
+  length <- findIndex (areEqual t') $ drop 1 $ iterate f t' -- This will be too low by 1 because I had to drop the first element
   pure $ MkCycleData startIndex (length + 1) t'
-  where areEqual x y = eqFun x == eqFun y
+  where
+    areEqual x y = eqFun x == eqFun y
 
+-- | Hare are tortoise algorithm to find cycles.
+-- If at any point the termination condition is satisfied, this just returns a Nothing
+hareAndTortoiseWithTermination ::
+  (Eq b) =>
+  (a -> a) -> -- Function move from one node to the next
+  a -> -- Initial state
+  (a -> b) -> -- Function to compare if two nodes are equal
+  (a -> Bool) -> -- termination condition
+  Maybe (CycleData a)
+hareAndTortoiseWithTermination f start eqFun shouldStop = do
+  let hare = drop 1 $ iterate (f . f) start
+  let tortoise = drop 1 $ iterate f start
+  let pairs = zip hare tortoise
+  (t, h) <- findM (uncurry areEqualOrStop) pairs
+  (startIndex, (t', _)) <- find (\(_, y) -> uncurry areEqual y) $ zip [0 ..] $ zip (iterate f start) (iterate f h)
+  length <- findIndex (areEqual t') $ drop 1 $ iterate f t' -- This will be too low by 1 because I had to drop the first element
+  pure $ MkCycleData startIndex (length + 1) t'
+  where
+    areEqualOrStop x y
+      | shouldStop y = Nothing
+      | shouldStop x = Nothing
+      | otherwise = Just $ eqFun x == eqFun y
+    areEqual x y = eqFun x == eqFun y
+
+findM :: (Foldable t) => (a -> Maybe Bool) -> t a -> Maybe a
+findM f = find (\x -> f x == Just True)
