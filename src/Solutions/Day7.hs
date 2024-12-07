@@ -3,19 +3,27 @@ module Solutions.Day7
   ) where
 
 import           Common.AoCSolutions (AoCSolution (MkAoCSolution),
-                                      printSolutions)
-import           Text.Trifecta       (Parser)
+                                      printSolutions, printTestSolutions)
+import           Text.Trifecta       (Parser, sepBy, some, newline, try, manyTill, Parsing (eof), TokenParsing (token))
+import Text.Parser.Token ( integer, integer' )
+import Text.Parser.Char (CharParsing(char, string))
 
 aoc7 :: IO ()
 aoc7 = do
-  printSolutions 7 $ MkAoCSolution parseInput part1
-  printSolutions 7 $ MkAoCSolution parseInput part2
+  printTestSolutions 7 $ MkAoCSolution parseInput part1
 
-parseInput :: Parser String
-parseInput = undefined
+type Equation = (Integer, [Integer])
 
-part1 :: String -> String
-part1 = undefined
+parseInput :: Parser [Equation]
+parseInput = some $ token parseEquation
+
+parseEquation :: Parser Equation
+parseEquation = do
+  x <- integer <* string ": "
+  inputs <- sepBy integer' $ char ' '
+  pure (x, inputs)
+
+part1 = id
 
 part2 :: String -> String
 part2 = undefined
