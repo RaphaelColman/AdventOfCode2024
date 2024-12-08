@@ -13,11 +13,12 @@ import Text.Parser.Char (CharParsing (char, string))
 import Text.Parser.Token (integer, integer')
 import Text.Trifecta (Parser, Parsing (eof), TokenParsing (token), manyTill, newline, sepBy, some, try)
 import Data.Maybe (catMaybes, mapMaybe)
+import Control.Parallel.Strategies
 
 aoc7 :: IO ()
 aoc7 = do
   printTestSolutions 7 $ MkAoCSolution parseInput part1
-  printTestSolutions 7 $ MkAoCSolution parseInput part2
+  --printSolutions 7 $ MkAoCSolution parseInput part2
 
 type Equation = (Integer, [Integer])
 
@@ -37,7 +38,7 @@ part1 input = sum $ map fst validEquations
 
 part2 input = sum $ map fst validEquations
   where
-    validEquations = filter equationIsValid input
+    validEquations = filter equationIsValid input `using` parList rdeepseq
 
 data Expression
   = Const Integer
