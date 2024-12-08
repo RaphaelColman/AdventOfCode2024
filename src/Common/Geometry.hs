@@ -82,3 +82,6 @@ gridSize :: Grid a -> V2 Int
 gridSize grid = V2 xMax yMax
   where (V2 xMax _) = maximumBy (compare `on` (^. _x)) $ M.keys grid
         (V2 _ yMax) = maximumBy (compare `on` (^. _y)) $ M.keys grid
+
+simplify :: Integral a => V2 a -> V2 a
+simplify (V2 x y) = let g = gcd x y in V2 (x `div` g) (y `div` g)
