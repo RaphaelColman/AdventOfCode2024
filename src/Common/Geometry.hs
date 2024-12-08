@@ -10,6 +10,7 @@ import qualified Data.Sequence   as Seq
 import qualified Data.Set        as S
 import           Linear.V2       (R1 (_x), R2 (_y), V2 (..))
 import Linear (unit)
+import Data.Function (on)
 
 type Point = V2 Int
 
@@ -75,3 +76,9 @@ allOrthogonalNeighbours v = S.fromList $ map (v +) allOrthogonalDirections
 
 gridOrthogonalNeighbours :: Grid a -> Point -> M.Map Point a
 gridOrthogonalNeighbours grid point = M.restrictKeys grid $ allOrthogonalNeighbours point
+
+-- | V2 vector representing the max X and y values of the grid
+gridSize :: Grid a -> V2 Int
+gridSize grid = V2 xMax yMax
+  where (V2 xMax _) = maximumBy (compare `on` (^. _x)) $ M.keys grid
+        (V2 _ yMax) = maximumBy (compare `on` (^. _y)) $ M.keys grid
