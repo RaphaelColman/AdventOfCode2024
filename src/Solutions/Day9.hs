@@ -19,6 +19,7 @@ import Text.Parser.Combinators (some)
 import Text.Trifecta (Parser, digit, integer)
 import Data.Maybe (isNothing)
 import Control.Monad.State (runState, modify)
+import GHC.RTS.Flags (ProfFlags(heapProfileInterval))
 
 data ReadState = MkReadState
   { _readFileBlock :: !Bool, -- If this is false we're reading free space
@@ -34,7 +35,7 @@ makeLenses ''ReadState
 
 aoc9 :: IO ()
 aoc9 = do
-  printTestSolutions 9 $ MkAoCSolution parseInput part1
+  printSolutions 9 $ MkAoCSolution parseInput part1
 
 -- printSolutions 9 $ MkAoCSolution parseInput part2
 --
@@ -46,7 +47,7 @@ parseInput = do
   digits <- some digit
   pure $ map (toInteger . digitToInt) digits
 
-part1 input = renderDiskMap solved
+part1 input = checkSum solved
   where
     test = [9, 0, 9, 0, 9]
     solved = compress $ readDiskMap input
@@ -81,6 +82,9 @@ isContiguous m = length keys == length [minKey .. maxKey]
     (minKey, _) = IM.findMin m
     (maxKey, _) = IM.findMax m
 
+-- I can see from the profile that we're spending most of our time in here.
+-- It would be faster to keep track of where the last free space was and search from there
+-- instead
 firstFreeSpace :: IM.IntMap a -> Maybe IM.Key
 firstFreeSpace m = find (\k -> isNothing (IM.lookup k m)) [0..maxKey]
   where
@@ -97,3 +101,6 @@ compressStep d = do
 
 compress :: Disk -> Disk
 compress d = maybe d compress (compressStep d)
+
+checkSum :: Disk -> Integer
+checkSum = IM.foldrWithKey' (\k a acc -> acc + (toInteger k * a)) 0 
