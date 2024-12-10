@@ -43,6 +43,8 @@ dependencies:
 - parsers
 - regex-tdfa
 - parallel
+- astar
+- unordered-containers
 
 library:
   source-dirs: src

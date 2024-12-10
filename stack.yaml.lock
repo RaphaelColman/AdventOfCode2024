@@ -25,6 +25,20 @@ packages:
       size: 340
   original:
     hackage: PSQueue-1.2.0
+- completed:
+    hackage: astar-0.3.0.0@sha256:8bf6350542e9db9451490e8993560ee843dc48a61d46a206985430f9b62461c8,967
+    pantry-tree:
+      sha256: c4176cc3fc9ad39f2a9fc7eb4346c87b6e60b70ba23d8e2adbdfc81fe544b808
+      size: 213
+  original:
+    hackage: astar-0.3.0.0
+- completed:
+    hackage: unordered-containers-0.2.20@sha256:5a3e730fb548640f2ec050ec7517af67deede21de51e32bbebf6b7b222e6d0f5,3921
+    pantry-tree:
+      sha256: e124d3e17a760412629d670dccc24221cbb19d24ff442157e62620269cff0faa
+      size: 1647
+  original:
+    hackage: unordered-containers-0.2.20
 snapshots:
 - completed:
     sha256: a81fb3877c4f9031e1325eb3935122e608d80715dc16b586eb11ddbff8671ecd

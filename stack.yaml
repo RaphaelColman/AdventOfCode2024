@@ -39,6 +39,8 @@ extra-deps:
 - advent-of-code-api-0.2.8.0
 - parsec3-numbers-0.1.0
 - PSQueue-1.2.0
+- astar-0.3.0.0
+- unordered-containers-0.2.20
 # - acme-missiles-0.3
 # - git: https://github.com/commercialhaskell/stack.git
 #   commit: e7b331f14bcffb8367cd58fbfc8b40ec7642100a
