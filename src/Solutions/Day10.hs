@@ -18,24 +18,25 @@ import Data.Maybe (mapMaybe)
 import qualified Data.Set as S
 import Linear.V2 (V2 (..))
 import Text.Trifecta (CharParsing (anyChar), Parser, some)
+import Debug.Trace
 
 type TrailMap = Grid Int
 
 aoc10 :: IO ()
 aoc10 = do
-  printSolutions 10 $ MkAoCSolution parseInput part1
+  -- printSolutions 10 $ MkAoCSolution parseInput part1
 
--- printSolutions 10 $ MkAoCSolution parseInput part2
+  printSolutions 10 $ MkAoCSolution parseInput part2
 
 parseInput :: Parser (Grid Int)
 parseInput = do
   charGrid <- enumerateMultilineStringToVectorMap <$> some anyChar
   pure $ M.map digitToInt charGrid
 
-part1 input = sum $ trailHeadScores input
+-- part1 input = sum $ trailHeadScores input
 
-part2 :: String -> String
-part2 = undefined
+part2 input = sum $ map (trailHeadRating input) sts
+  where sts = starts input
 
 validNeighbours :: Grid Int -> V2 Int -> S.Set (V2 Int)
 validNeighbours grid pos =
@@ -67,4 +68,12 @@ trailheadScore tm start = length $ mapMaybe (shortestPath tm start) $ destinatio
 trailHeadScores :: TrailMap -> [Int]
 trailHeadScores tm = map (trailheadScore tm) $ starts tm
 
---test starts: [V2 0 7,V2 1 6,V2 2 1,V2 3 0,V2 3 5,V2 4 1,V2 5 0,V2 6 5,V2 7 6]
+trailHeadRating :: TrailMap -> V2 Int -> Int
+trailHeadRating tm = go
+  where
+    go node
+      | tm M.! node == 9 = 1
+      | null nextNodes = 0
+      | otherwise = sum $ map go nextNodes
+      where
+        nextNodes = S.toList $ validNeighbours tm node
