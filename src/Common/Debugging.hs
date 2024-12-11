@@ -12,6 +12,12 @@ traceLns string expr =
     putStrLn string
     return expr
 
+withNewLines :: (Show a) => [a] -> b -> b
+withNewLines xs expr =
+  unsafePerformIO $ do
+    mapM_ print xs
+    return expr
+
 {-# NOINLINE traceVectorMap #-}
 traceVectorMap :: M.Map Point Char -> a -> a
 traceVectorMap vm = traceLns (renderVectorMap vm)
