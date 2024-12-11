@@ -1,5 +1,4 @@
 {-# LANGUAGE TupleSections #-}
-{-# LANGUAGE ScopedTypeVariables #-}
 
 module Solutions.Day11
   ( aoc11,
@@ -14,15 +13,15 @@ import Common.AoCSolutions
 import Common.Debugging (withNewLines)
 import Common.FunctorUtils (fmap2)
 import Common.ListUtils (freqs)
+import Common.MapUtils (MonoidIntMap (MkMonoidIntMap, _map))
+import Data.Foldable (find)
 import Data.Function ((&))
 import qualified Data.IntMap as IM
+import Data.List (findIndex)
+import qualified Data.Map as M
 import Data.Monoid (Sum (Sum, getSum))
-import Debug.Trace
 import Text.Parser.Combinators (some)
 import Text.Trifecta (Parser, integer)
-import qualified Data.Map as M
-import Data.Foldable (find)
-import Data.List (findIndex)
 
 aoc11 :: IO ()
 aoc11 = do
@@ -32,17 +31,9 @@ aoc11 = do
 parseInput :: Parser [Int]
 parseInput = fmap2 fromIntegral $ some integer
 
-part1 input = length $ iterate blink input !! 25
+part1 input = lnMap $ iterate stepStoneIM (initStones input) !! 25
 
-part2 input = lnMap $ iterate stepStoneIM i !! 75
-  where
-    i = initStones input
-    correctAnswer = map freqs $ take 11 $ iterate blink input
-    c :: [IM.IntMap Int] = correctAnswer & map (IM.fromList . M.toList)
-    tst2 = map (\m -> IM.map getSum m) $ take 11 $ iterate stepStoneIM' i
-    firstDifference = find (\(m1, m2) -> m1 /= m2) $ zip c tst2
-
--- This is giving me the wrong answer for 25 blinks. It's too low
+part2 input = lnMap $ iterate stepStoneIM (initStones input) !! 75
 
 stepStone :: Int -> [Int]
 stepStone i
@@ -54,45 +45,15 @@ stepStone i
   where
     asDigitString = show i
 
-blink :: [Int] -> [Int]
-blink = concatMap stepStone
-
--- Use FoldMapWithKey - pretty sure IM is monoidal so you can just
--- keep unioning the resulting maps
 stepStoneIM :: IM.IntMap (Sum Int) -> IM.IntMap (Sum Int)
 stepStoneIM mp = _map $ IM.foldMapWithKey go mp
   where
-    go :: Int -> Sum Int -> MonoidIntMap (Sum Int)
     go k (Sum numOccurences) = MkMonoidIntMap im
       where
         im = IM.fromListWith (<>) $ map (,Sum numOccurences) $ stepStone k
 
-stepStoneIM' :: IM.IntMap (Sum Int) -> IM.IntMap (Sum Int)
-stepStoneIM' mp = m
-  where
-    m =
-      mp
-        & IM.toList
-        & map
-          ( \(k, count) ->
-              let xs = stepStone k
-               in IM.fromListWith (+) $ map (,count) xs
-          )
-        & IM.unionsWith (+)
-
--- Ok this gets me the same wrong answer. There's some multiplication I'm forgetting to do
-
-newtype MonoidIntMap a = MkMonoidIntMap {_map :: IM.IntMap a} deriving (Show)
-
-instance (Monoid a) => Monoid (MonoidIntMap a) where
-  mempty = MkMonoidIntMap IM.empty
-  mappend = (<>)
-
-instance (Semigroup a) => Semigroup (MonoidIntMap a) where
-  (<>) (MkMonoidIntMap mapA) (MkMonoidIntMap mapB) = MkMonoidIntMap $ IM.unionWith (<>) mapA mapB
-
 initStones :: [Int] -> IM.IntMap (Sum Int)
-initStones xs = IM.fromList $ map (,Sum 1) xs
+initStones = IM.fromList . map (,Sum 1)
 
 lnMap :: IM.IntMap (Sum Int) -> Int
 lnMap = getSum . foldr1 (<>) . IM.elems

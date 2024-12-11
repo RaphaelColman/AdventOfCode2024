@@ -4,6 +4,7 @@ import           Data.Either   (partitionEithers)
 import           Data.Foldable (minimumBy)
 import           Data.Function (on)
 import qualified Data.Map      as M
+import qualified Data.IntMap as IM
 
 mapIf :: (a -> Bool) -> (a -> a) -> M.Map k a -> M.Map k a
 mapIf condition f =
@@ -32,3 +33,15 @@ partitionKeys f combining map' =
 
 minimumValue :: (Ord a) => M.Map k a -> (k, a)
 minimumValue = minimumBy (compare `on` snd) . M.toList
+
+
+-- | A newtype wrapper around IntMap that allows it to behave more sensibly
+-- as a monoid if its underlying type is also monoidal.
+newtype MonoidIntMap a = MkMonoidIntMap {_map :: IM.IntMap a} deriving (Show)
+
+instance (Monoid a) => Monoid (MonoidIntMap a) where
+  mempty = MkMonoidIntMap IM.empty
+  mappend = (<>)
+
+instance (Semigroup a) => Semigroup (MonoidIntMap a) where
+  (<>) (MkMonoidIntMap mapA) (MkMonoidIntMap mapB) = MkMonoidIntMap $ IM.unionWith (<>) mapA mapB
