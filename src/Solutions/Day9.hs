@@ -131,7 +131,7 @@ calculateGaps d = g
       map
         ( \((idx, (_, size)), (nextIdx, _)) ->
             let gapSize = (idx + fromIntegral size)
-             in (idx + (fromIntegral size), nextIdx - gapSize)
+             in (idx + fromIntegral size, nextIdx - gapSize)
         )
         pairs
 
