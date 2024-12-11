@@ -32,13 +32,6 @@ packages:
       size: 213
   original:
     hackage: astar-0.3.0.0
-- completed:
-    hackage: unordered-containers-0.2.20@sha256:5a3e730fb548640f2ec050ec7517af67deede21de51e32bbebf6b7b222e6d0f5,3921
-    pantry-tree:
-      sha256: e124d3e17a760412629d670dccc24221cbb19d24ff442157e62620269cff0faa
-      size: 1647
-  original:
-    hackage: unordered-containers-0.2.20
 snapshots:
 - completed:
     sha256: a81fb3877c4f9031e1325eb3935122e608d80715dc16b586eb11ddbff8671ecd
