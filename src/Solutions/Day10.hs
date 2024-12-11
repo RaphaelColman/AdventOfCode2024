@@ -51,25 +51,26 @@ starts :: TrailMap -> [V2 Int]
 starts tm = M.filter (== 0) tm & M.keys
 
 trailheadScore :: TrailMap -> V2 Int -> Int
-trailheadScore tm node = length $ go S.empty node
+trailheadScore tm node = length $ memo M.! node
   where
-    go :: S.Set (V2 Int) -> V2 Int -> S.Set (V2 Int)
-    go visited node
-      | tm M.! node == 9 = S.singleton node
+    memo = M.mapWithKey go tm
+    go k v
+      | v == 9 = S.singleton k
       | null nextNodes = S.empty
-      | otherwise = S.unions $ map (go visited) nextNodes
+      | otherwise = S.unions $ map (memo M.!) nextNodes
       where
-        nextNodes = S.toList $ validNeighbours tm node
+        nextNodes = S.toList $ validNeighbours tm k
 
 trailHeadScores :: TrailMap -> [Int]
 trailHeadScores tm = map (trailheadScore tm) $ starts tm
 
 trailHeadRating :: TrailMap -> V2 Int -> Int
-trailHeadRating tm = go
+trailHeadRating tm node = memo M.! node
   where
-    go node
-      | tm M.! node == 9 = 1
+    memo = M.mapWithKey go tm
+    go k v
+      | v == 9 = 1
       | null nextNodes = 0
-      | otherwise = sum $ map go nextNodes
+      | otherwise = sum $ map (memo M.!) nextNodes
       where
-        nextNodes = S.toList $ validNeighbours tm node
+        nextNodes = S.toList $ validNeighbours tm k
