@@ -12,14 +12,14 @@ import Common.AoCSolutions
     printSolutions,
     printTestSolutions,
   )
-import Control.Applicative (Alternative ((<|>)))
-import Control.Lens (makeLenses)
-import Linear (V2 (V2))
-import Text.Trifecta (CharParsing (char, string), Parser, count, integer, some)
 import Common.MathUtils (isInteger, rationalToInteger)
+import Control.Applicative (Alternative ((<|>)))
+import Control.Lens
+import Control.Lens.Combinators (over)
 import Control.Monad (guard)
 import Data.Maybe (catMaybes, mapMaybe)
-import Control.Lens.Combinators (over)
+import Linear.V2 (R1 (_x), R2 (_y), V2 (..))
+import Text.Trifecta (CharParsing (char, string), Parser, count, integer, some)
 
 data Machine = MkMachine
   { _buttonA :: !(V2 Integer), -- Costs 3 tokens
@@ -59,11 +59,14 @@ parsePrize = do
   pure $ V2 x y
 
 part1 input = sum $ map (uncurry tokenCost) solved
-  where solved = mapMaybe resolveMachine input
+  where
+    solved = mapMaybe resolveMachine input
 
 part2 input = sum $ map (uncurry tokenCost) solved
-  where solved = mapMaybe (resolveMachine . modifyMachine) input
+  where
+    solved = mapMaybe (resolveMachine . modifyMachine) input
 
+-- | These are simultaneous equations.
 resolveMachine :: Machine -> Maybe (Integer, Integer)
 resolveMachine (MkMachine (V2 ax ay) (V2 bx by) (V2 tx ty)) = do
   a <- rationalToInteger a'
@@ -77,4 +80,7 @@ tokenCost :: Integer -> Integer -> Integer
 tokenCost a b = 3 * a + b
 
 modifyMachine :: Machine -> Machine
-modifyMachine (MkMachine a b (V2 x y)) = MkMachine a b (V2 (x+10000000000000) (y+10000000000000))
+modifyMachine machine =
+  machine
+    & (prizeLocation . _x) %~ (+ 10000000000000)
+    & (prizeLocation . _y) %~ (+ 10000000000000)
