@@ -58,13 +58,15 @@ parsePrize = do
   y <- string "Y=" *> integer
   pure $ V2 x y
 
-part1 input = sum $ map (uncurry tokenCost) solved
-  where
-    solved = mapMaybe resolveMachine input
+part1 :: [Machine] -> Integer
+part1 = solve 0 
 
-part2 input = sum $ map (uncurry tokenCost) solved
-  where
-    solved = mapMaybe (resolveMachine . modifyMachine) input
+part2 :: [Machine] -> Integer
+part2 = solve 10000000000000
+
+solve :: Integer -> [Machine] -> Integer
+solve amount machines = sum $ map (uncurry tokenCost) solved
+  where solved = mapMaybe (resolveMachine . modifyTarget amount) machines
 
 -- | These are simultaneous equations.
 resolveMachine :: Machine -> Maybe (Integer, Integer)
@@ -79,8 +81,8 @@ resolveMachine (MkMachine (V2 ax ay) (V2 bx by) (V2 tx ty)) = do
 tokenCost :: Integer -> Integer -> Integer
 tokenCost a b = 3 * a + b
 
-modifyMachine :: Machine -> Machine
-modifyMachine machine =
+modifyTarget :: Integer -> Machine -> Machine
+modifyTarget amount machine =
   machine
-    & (prizeLocation . _x) %~ (+ 10000000000000)
-    & (prizeLocation . _y) %~ (+ 10000000000000)
+    & (prizeLocation . _x) %~ (+ amount)
+    & (prizeLocation . _y) %~ (+ amount)
