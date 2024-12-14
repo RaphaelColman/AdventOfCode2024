@@ -11,17 +11,24 @@ import Common.AoCSolutions
     printSolutions,
     printTestSolutions,
   )
+import Common.Debugging (traceLns)
 import Common.FunctorUtils (fmap2)
+import Common.Geometry (renderVectorSet)
 import Common.ListUtils (freqs)
 import Control.Lens (makeLenses, over, (^.))
+import Control.Monad (when)
 import Data.Finite
-import Data.Foldable (find)
-import Data.Function ((&))
+import Data.Foldable (find, minimumBy)
+import Data.Function (on, (&))
+import Data.List (maximumBy, nub)
 import qualified Data.Map as M
 import Data.Maybe (fromJust, mapMaybe)
 import Data.Range
-import Linear (V2 (V2))
+import qualified Data.Set as S
+import Debug.Trace
+import Linear (V2 (V2), _x, _y)
 import Text.Parser.Combinators (some)
+import Text.Printf (printf)
 import Text.Trifecta (CharParsing (string), Parser, commaSep, integer)
 
 type Bounds = V2 Int
@@ -38,9 +45,8 @@ makeLenses ''Robot
 
 aoc14 :: IO ()
 aoc14 = do
-  printSolutions 14 $ MkAoCSolution parseInput part1
-
--- printSolutions 14 $ MkAoCSolution parseInput part2
+  -- printSolutions 14 $ MkAoCSolution parseInput part1
+  printSolutions 14 $ MkAoCSolution parseInput part2
 
 parseInput :: Parser [Robot]
 parseInput = some parseRobot
@@ -57,8 +63,9 @@ part1 input = product $ M.elems quadrantCounts
     finalLocations = iterate (moveRobots bounds) input !! 100
     quadrantCounts = freqs $ mapMaybe (quadrant bounds . _position) finalLocations
 
-part2 :: String -> String
-part2 = undefined
+part2 = runUntilSmol bounds
+  where
+    bounds = V2 101 103
 
 moveRobot :: Bounds -> Robot -> Robot
 moveRobot (V2 maxX maxY) robot = robot & over position (wrapVector . (+ (robot ^. direction)))
@@ -79,3 +86,23 @@ quadrant (V2 maxX maxY) p = finite . fst <$> found
     halfY = maxY `div` 2
     satisfiesRanges (V2 x y) (xRange, yRange) = xRange `inRange` x && yRange `inRange` y
     found = find (\(i, ranges) -> satisfiesRanges p ranges) $ zip [0 ..] [tl, tr, br, bl]
+
+runUntilSmol :: Bounds -> [Robot] -> Int
+runUntilSmol bounds robots = go robots 0
+  where
+    go :: [Robot] -> Int -> Int
+    go robots' steps
+      | steps > 100000000 = error "Too many steps"
+      | anyPointsShared robots' = go moved (steps + 1)
+      | otherwise = traceLns rendered steps
+      where
+        pts = map _position robots'
+        moved = moveRobots bounds robots'
+        rendered = renderVectorSet (S.fromList pts)
+
+-- | Wild guess. Maybe the robots don't share any spaces when
+-- they're in the right configuration?
+anyPointsShared :: [Robot] -> Bool
+anyPointsShared robots = length (nub pts) /= length pts
+  where
+    pts = map _position robots
