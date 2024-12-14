@@ -68,8 +68,8 @@ moveRobot (V2 maxX maxY) robot = robot & over position (wrapVector . (+ (robot ^
 moveRobots :: Bounds -> [Robot] -> [Robot]
 moveRobots bounds = fmap (moveRobot bounds)
 
-quadrant :: V2 Int -> V2 Int -> Maybe Int
-quadrant (V2 maxX maxY) p = fst <$> found
+quadrant :: V2 Int -> V2 Int -> Maybe Quadrant
+quadrant (V2 maxX maxY) p = finite . fst <$> found
   where
     tl = (0 +=* halfX, 0 +=* halfY)
     tr = (halfX *=* maxX, 0 +=* halfY)
@@ -78,4 +78,4 @@ quadrant (V2 maxX maxY) p = fst <$> found
     halfX = maxX `div` 2
     halfY = maxY `div` 2
     satisfiesRanges (V2 x y) (xRange, yRange) = xRange `inRange` x && yRange `inRange` y
-    found = find (\(i, ranges) -> satisfiesRanges p ranges) $ zip [1 ..] [tl, tr, br, bl]
+    found = find (\(i, ranges) -> satisfiesRanges p ranges) $ zip [0 ..] [tl, tr, br, bl]
