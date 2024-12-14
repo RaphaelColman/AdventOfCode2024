@@ -89,6 +89,7 @@ library
     , parallel
     , parser-combinators
     , parsers
+    , range
     , regex-tdfa
     , safe
     , split
@@ -125,6 +126,7 @@ executable AdventOfCode2024-exe
     , parallel
     , parser-combinators
     , parsers
+    , range
     , regex-tdfa
     , safe
     , split
@@ -162,6 +164,7 @@ test-suite AdventOfCode2024-test
     , parallel
     , parser-combinators
     , parsers
+    , range
     , regex-tdfa
     , safe
     , split

@@ -45,6 +45,7 @@ dependencies:
 - parallel
 - astar
 - unordered-containers
+- range
 
 library:
   source-dirs: src
