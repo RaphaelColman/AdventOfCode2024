@@ -30,6 +30,7 @@ import Linear.V2 (R1 (_x), R2 (_y), V2 (..))
 import Text.Parser.Char (CharParsing (string), oneOf)
 import Text.Parser.Combinators (manyTill, some)
 import Text.Trifecta (Parser)
+import Text.Parser.Token (token)
 
 data WarehouseState = MkWarehouseState
   { _robot :: !(V2 Int),
@@ -44,14 +45,14 @@ makeLenses ''WarehouseState
 
 aoc15 :: IO ()
 aoc15 = do
-  printTestSolutions 15 $ MkAoCSolution parseInput part1
+  printSolutions 15 $ MkAoCSolution parseInput part1
 
 -- printSolutions 15 $ MkAoCSolution parseInput part2
 
 parseInput :: Parser (Grid Char, [V2 Int])
 parseInput = do
   gr <- parseGridCharacters
-  ds <- some parseDirection
+  ds <- fmap concat $ some $ token $ some parseDirection
   pure (gr, ds)
 
 parseGridCharacters :: Parser (Grid Char)
@@ -69,7 +70,7 @@ parseDirection = do
     'v' -> return $ unit _y
     _ -> fail "Invalid direction character"
 
-part1 input = directions
+part1 input = traceLns rendered $ gpsChecksum solved
   where
     (grid, directions) = input
     state = initState grid
@@ -131,3 +132,8 @@ stateToMap (MkWarehouseState robot walls crates) = M.unions [wallMap, crateMap, 
     wallMap = M.fromSet (const '#') walls
     crateMap = M.fromSet (const 'O') crates
     robotMap = M.singleton robot '@'
+
+gpsChecksum :: WarehouseState -> Int
+gpsChecksum state = state ^. crates
+  & S.map (\(V2 x y) -> x + y * 100)
+  & sum
