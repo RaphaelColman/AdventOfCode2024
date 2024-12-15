@@ -18,9 +18,10 @@ import Debug.Trace
 import Linear.V2 (V2 (V2))
 import Text.Printf (printf)
 import Text.Trifecta (CharParsing (anyChar), Parser, some)
+import Data.Traversable (for)
 
 type Region = S.Set Point
-
+type Side = [Point]
 type PlantType = Char
 
 aoc12 :: IO ()
@@ -78,3 +79,33 @@ perimeter region = length $ filter (`S.notMember` region) surroundingPoints
 
 cost :: Region -> Int
 cost region = perimeter region * S.size region
+
+
+-- | This has to take all "outer" points to work
+countSides :: Region -> Int
+countSides region = go [[]] region
+  where
+    point = S.findMin region
+    go :: [Side] -> Region -> Int
+    go sides remainingPoints
+      | null sides = undefined go [[pt]] newRemainingPoints
+      | null remainingPoints = length sides
+      | null vertNeighbours && null horizontalNeighbours = go ([pt] : sides) (S.delete pt remainingPoints)
+      | not (null vertNeighbours) && not (null horizontalNeighbours) = error "Both horizontal and vertical neighbours found"
+      | not (null vertNeighbours) = go [[]] (remainingPoints `S.difference` vertNeighbours)
+      --This won't work. Once we've added the vert neighbours we need to repeat the algorithm for
+      -- the 1 or 2 points we've added. but this will just go and look in remainingPoints.
+      -- So maybe we have a function which is "expand pt to side" which returns a side from a point
+      where
+        pt = S.findMin remainingPoints -- Will this be slow? Let's try it and see
+        vertNeighbours = S.fromList [pt + V2 0 1, pt + V2 0 (-1)] `S.intersection` remainingPoints
+        horizontalNeighbours = S.fromList [pt + V2 1 0, pt + V2 (-1) 0] `S.intersection` remainingPoints
+        newRemainingPoints = S.delete pt remainingPoints
+
+{-
+ - Finding the number of sides
+ - 1. find all the points outside of the region (including duplicates). Call this oRegion
+ - 2. Pick a point. Expand either Horizontally or Vertically using points in oRegion (bomb out if you can do both, this should never happen)
+ - 3. Keep expanding until you can't anymore. You've found a side.
+ - 4. Pick another point and repeat
+ -}
