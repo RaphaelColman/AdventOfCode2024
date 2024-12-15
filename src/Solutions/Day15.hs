@@ -1,5 +1,5 @@
-{-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE OverloadedRecordDot #-}
+{-# LANGUAGE TemplateHaskell #-}
 
 module Solutions.Day15
   ( aoc15,
@@ -11,27 +11,34 @@ import Common.AoCSolutions
     printSolutions,
     printTestSolutions,
   )
-import Common.Geometry (Grid, enumerateMultilineStringToVectorMap)
+import Common.Debugging (traceLns)
+import Common.Geometry (Grid, enumerateMultilineStringToVectorMap, renderVectorMap, renderVectorSet)
 import Control.Lens (makeLenses, (.~))
+import Control.Lens.Getter ((^.))
+import Control.Monad.Loops (unfoldrM)
+import Control.Monad.State (MonadState (get, put), MonadTrans (lift), State, StateT (runStateT), execState, gets, guard, modify)
+import Control.Monad.Trans.Maybe (MaybeT)
 import Data.Foldable
 import Data.Function ((&))
+import Data.List (unfoldr)
 import qualified Data.Map as M
+import Data.Maybe (fromMaybe)
 import qualified Data.Set as S
+import Debug.Trace (traceShow)
 import Linear (unit)
 import Linear.V2 (R1 (_x), R2 (_y), V2 (..))
 import Text.Parser.Char (CharParsing (string), oneOf)
 import Text.Parser.Combinators (manyTill, some)
 import Text.Trifecta (Parser)
-import Control.Monad.State (State, MonadState (get, put), StateT (runStateT), gets, MonadTrans (lift), modify, execState)
-import Control.Lens.Getter ((^.))
-import Data.List (unfoldr)
-import Control.Monad.Loops (unfoldrM)
 
 data WarehouseState = MkWarehouseState
   { _robot :: !(V2 Int),
-    _grid :: !(M.Map (V2 Int) Char)
+    _walls :: !(S.Set (V2 Int)),
+    _crates :: !(S.Set (V2 Int))
   }
   deriving (Eq, Show)
+
+type Direction = V2 Int
 
 makeLenses ''WarehouseState
 
@@ -62,10 +69,12 @@ parseDirection = do
     'v' -> return $ unit _y
     _ -> fail "Invalid direction character"
 
-part1 input = getCratesToMove' (V2 1 0) (V2 2 1) gr
+part1 input = solved
   where
     (grid, directions) = input
-    MkWarehouseState robot gr = initState grid
+    state = initState grid
+    solved = doMoves directions state
+    rendered = renderVectorSet $ solved ^. crates
 
 findRobot :: Grid Char -> V2 Int
 findRobot grid =
@@ -74,51 +83,50 @@ findRobot grid =
     & head
 
 initState :: Grid Char -> WarehouseState
-initState grid = MkWarehouseState robot gridWithoutRobot
+initState grid = MkWarehouseState robot walls crates
   where
     robot = findRobot grid
-    gridWithoutRobot = M.adjust (const '.') robot grid
+    walls = M.keysSet $ M.filter (== '#') grid
+    crates = M.keysSet $ M.filter (== 'O') grid
 
-moveRobot :: V2 Int -> State WarehouseState ()
-moveRobot direction = do
-  state <- get
-  let nextPos = state._robot + direction
-  let nextChar = state._grid M.! nextPos
-  pure ()
+doMoves :: [Direction] -> WarehouseState -> WarehouseState
+doMoves dirs state = foldl' (flip moveRobot) state dirs
 
-getCratesToMove :: V2 Int -> StateT WarehouseState Maybe [V2 Int]
-getCratesToMove direction = do
-  MkWarehouseState robotPos grid <- get
-  positionsToMove <- lift $ unfoldrM (go grid) robotPos
-  pure undefined
-    where go grid' pos = do
-            let next = pos + direction
-            l <- M.lookup next grid'
-            case l of
-              'O' -> Just $ Just (next, next)
-              '.' -> Just Nothing
-              '#' -> Nothing
-
-getCratesToMove' :: V2 Int -> V2 Int -> Grid Char -> Maybe [V2 Int]
-getCratesToMove' direction robot grid = objects
+moveRobot :: V2 Int -> WarehouseState -> WarehouseState
+moveRobot direction state = traceShow state $ fromMaybe state (moveRobotMaybe direction state)
   where
-    objects = unfoldrM go robot
+    rendered = renderVectorMap $ stateToMap state
+
+moveRobotMaybe :: V2 Int -> WarehouseState -> Maybe WarehouseState
+moveRobotMaybe direction state = do
+  cratesToMove <- getCratesToMove direction state
+  let newCrates =
+        S.map
+          ( \c ->
+              if c `elem` cratesToMove
+                then c + direction
+                else c
+          )
+          (state ^. crates)
+  -- If the next space were a wall we'd have returned a Nothing already
+  let newRobot = state ^. robot + direction
+  pure $ MkWarehouseState newRobot (state ^. walls) newCrates
+
+getCratesToMove :: V2 Int -> WarehouseState -> Maybe [V2 Int]
+getCratesToMove direction state = do
+  let nextPos = state ^. robot + direction
+  unfoldrM go nextPos
+  where
     go :: V2 Int -> Maybe (Maybe (V2 Int, V2 Int))
-    go pos = do
-      let next = pos + direction
-      l <- M.lookup next grid
-      case l of
-        'O' -> Just $ Just (next, next)
-        '.' -> Just Nothing
-        '#' -> Nothing
+    go pt = do
+      guard $ pt `S.member` (state ^. walls) -- Stop entirely if we've hit a wall
+      if pt `S.member` (state ^. crates)
+        then Just (Just (pt, pt + direction)) -- continue unfolding
+        else Just Nothing -- Stop unfolding.
 
-moveCrate :: V2 Int -> V2 Int -> State WarehouseState ()
-moveCrate from direction = do
-  state <- get
-  let g = state._grid
-  let newGrid = flip execState g $ do
-                            modify $ M.adjust (const '.') from
-                            modify $ M.adjust (const 'O') (from + direction)
-  put $ state & grid .~ newGrid
-
--- (4,1) down should get some results
+stateToMap :: WarehouseState -> Grid Char
+stateToMap (MkWarehouseState robot walls crates) = M.unions [wallMap, crateMap, robotMap]
+  where
+    wallMap = M.fromSet (const '#') walls
+    crateMap = M.fromSet (const 'O') crates
+    robotMap = M.singleton robot '@'
