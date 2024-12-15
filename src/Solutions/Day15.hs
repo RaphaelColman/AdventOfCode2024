@@ -24,7 +24,7 @@ import Data.List (unfoldr)
 import qualified Data.Map as M
 import Data.Maybe (fromMaybe)
 import qualified Data.Set as S
-import Debug.Trace (traceShow)
+import Debug.Trace (traceShow, traceShowM)
 import Linear (unit)
 import Linear.V2 (R1 (_x), R2 (_y), V2 (..))
 import Text.Parser.Char (CharParsing (string), oneOf)
@@ -69,12 +69,13 @@ parseDirection = do
     'v' -> return $ unit _y
     _ -> fail "Invalid direction character"
 
-part1 input = solved
+part1 input = directions
   where
     (grid, directions) = input
     state = initState grid
     solved = doMoves directions state
-    rendered = renderVectorSet $ solved ^. crates
+    rendered = renderVectorMap $ stateToMap solved
+    firstMove = moveRobot (V2 (-1) 0) state
 
 findRobot :: Grid Char -> V2 Int
 findRobot grid =
@@ -93,7 +94,7 @@ doMoves :: [Direction] -> WarehouseState -> WarehouseState
 doMoves dirs state = foldl' (flip moveRobot) state dirs
 
 moveRobot :: V2 Int -> WarehouseState -> WarehouseState
-moveRobot direction state = traceShow state $ fromMaybe state (moveRobotMaybe direction state)
+moveRobot direction state = fromMaybe state (moveRobotMaybe direction state)
   where
     rendered = renderVectorMap $ stateToMap state
 
@@ -119,7 +120,7 @@ getCratesToMove direction state = do
   where
     go :: V2 Int -> Maybe (Maybe (V2 Int, V2 Int))
     go pt = do
-      guard $ pt `S.member` (state ^. walls) -- Stop entirely if we've hit a wall
+      guard $ not $ pt `S.member` (state ^. walls) -- Stop entirely if we've hit a wall
       if pt `S.member` (state ^. crates)
         then Just (Just (pt, pt + direction)) -- continue unfolding
         else Just Nothing -- Stop unfolding.
