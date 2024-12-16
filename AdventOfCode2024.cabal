@@ -26,6 +26,7 @@ source-repository head
 library
   exposed-modules:
       Common.AoCSolutions
+      Common.ApplicativeUtils
       Common.BinaryUtils
       Common.Debugging
       Common.EnumUtils
@@ -81,6 +82,7 @@ library
     , directory
     , dotenv
     , finite-typelits
+    , hashable
     , lens
     , linear
     , monad-extras
@@ -92,6 +94,7 @@ library
     , range
     , regex-tdfa
     , safe
+    , search-algorithms
     , split
     , text
     , text-format
@@ -118,6 +121,7 @@ executable AdventOfCode2024-exe
     , directory
     , dotenv
     , finite-typelits
+    , hashable
     , lens
     , linear
     , monad-extras
@@ -129,6 +133,7 @@ executable AdventOfCode2024-exe
     , range
     , regex-tdfa
     , safe
+    , search-algorithms
     , split
     , text
     , text-format
@@ -156,6 +161,7 @@ test-suite AdventOfCode2024-test
     , directory
     , dotenv
     , finite-typelits
+    , hashable
     , lens
     , linear
     , monad-extras
@@ -167,6 +173,7 @@ test-suite AdventOfCode2024-test
     , range
     , regex-tdfa
     , safe
+    , search-algorithms
     , split
     , text
     , text-format

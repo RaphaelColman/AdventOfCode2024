@@ -46,6 +46,8 @@ dependencies:
 - astar
 - unordered-containers
 - range
+- hashable
+- search-algorithms
 
 library:
   source-dirs: src
