@@ -43,7 +43,6 @@ dependencies:
 - parsers
 - regex-tdfa
 - parallel
-- astar
 - unordered-containers
 - range
 - hashable

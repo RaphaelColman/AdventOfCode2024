@@ -11,7 +11,6 @@ import Common.AoCSolutions
 import Common.Geometry (Grid, Point, allOrthogonalNeighbours, enumerateMultilineStringToVectorMap, gridOrthogonalNeighbours)
 import Data.Char (digitToInt)
 import Data.Function ((&))
-import Data.Graph.AStar (aStar)
 import qualified Data.HashSet as HS
 import qualified Data.Map as M
 import Data.Maybe (mapMaybe)

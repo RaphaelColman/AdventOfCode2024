@@ -18,7 +18,6 @@ import Control.Lens.Setter ((.~))
 import Control.Monad.Extra (mapMaybeM)
 import Control.Monad.Reader (Reader, ask, lift, liftM, runReader)
 import Data.Function ((&))
-import Data.Graph.AStar (aStar, aStarM)
 import qualified Data.HashSet as HS
 import Data.Hashable (Hashable)
 import Data.List ((\\))
@@ -30,13 +29,16 @@ import Text.Parser.Combinators (some)
 import Text.Trifecta (CharParsing (anyChar), Parser)
 import Common.ApplicativeUtils (liftResult)
 import Debug.Trace
+import Algorithm.Search (aStarM)
+import Control.Monad (when)
+import Common.Debugging (traceLns)
+import qualified Control.Applicative as quickly
 
 data ReindeerState = MkReindeerState
   { _position :: !Point,
     _direction :: !Point,
     _costSoFar :: !Int,
-    _target :: !Point,
-    _pointsVisited :: !(HS.HashSet Point)
+    _target :: !Point
   }
   deriving (Show, Eq, Generic, Ord)
 
@@ -48,7 +50,7 @@ makeLenses ''ReindeerState
 
 aoc16 :: IO ()
 aoc16 = do
-  printTestSolutions 16 $ MkAoCSolution parseInput part1
+  printSolutions 16 $ MkAoCSolution parseInput part1
 
 -- printSolutions 16 $ MkAoCSolution parseInput part2
 
@@ -56,7 +58,7 @@ parseInput :: Parser (Grid Char)
 parseInput = do
   enumerateMultilineStringToVectorMap <$> some anyChar
 
-part1 input = _costSoFar . last <$> solved
+part1 input = fst <$> solved
   where
     (initialState, grid) = initState input
     solved = runReader (solve initialState) grid
@@ -72,22 +74,25 @@ initState g = (state, newGrid)
   where
     start = findStart g
     end = findEnd g
-    state = MkReindeerState start (V2 1 0) 0 end (HS.singleton start)
+    state = MkReindeerState start (V2 1 0) 0 end 
     newGrid = g & M.adjust (const '.') start & M.adjust (const '.') end
 
 neighbours :: ReindeerState -> Reader GridChar (HS.HashSet ReindeerState)
 neighbours state = do
   nextStates <- mapMaybeM (\f -> f state) [moveForward, turnRight, turnLeft]
-  pure $ HS.fromList nextStates
+  let c = state ^. costSoFar
+  if (c `mod` 100 == 0)
+  then traceShow c $ pure $ HS.fromList nextStates
+  else pure $ HS.fromList nextStates
 
 -- Should this be a MaybeT? Or a ReaderT? Not sure yet
 moveForward :: ReindeerState -> Reader GridChar (Maybe ReindeerState)
 moveForward state = do
   grid <- ask
   let nextPos = state ^. position + state ^. direction
-  if (grid M.! nextPos) == '#' || nextPos `HS.member` (state ^. pointsVisited)
+  if (grid M.! nextPos) == '#'
     then pure Nothing
-    else pure $ Just $ state & position .~ nextPos & costSoFar %~ (+ 1) & pointsVisited %~ HS.insert nextPos
+    else pure $ Just $ state & position .~ nextPos & costSoFar %~ (+ 1) 
 
 turnRight :: ReindeerState -> Reader GridChar (Maybe ReindeerState)
 turnRight state = do
@@ -101,9 +106,9 @@ turnLeft state = do
 
 -- | https://hackage.haskell.org/package/search-algorithms-0.3.
 -- Comes with base. I should probably switch to that because it has way more algorithms
-solve :: ReindeerState -> Reader GridChar (Maybe [ReindeerState])
+solve :: ReindeerState -> Reader GridChar (Maybe (Int, [ReindeerState]))
 solve state = do
-  aStarM neighbours costFun (liftResult heuristic) (liftResult goalReached) (pure state)
+  aStarM neighbours costFun (liftResult heuristic) (liftResult goalReached) state
 
 -- There must be a way to lift this into the Reader monad
 costFun :: ReindeerState -> ReindeerState -> Reader GridChar Int
@@ -111,7 +116,7 @@ costFun state1 state2 = pure $ state2 ^. costSoFar - state1 ^. costSoFar
 
 -- | The heuristic will be the manhattan distance from current position to target
 heuristic :: ReindeerState -> Int
-heuristic state = stepCost + state ^. costSoFar
+heuristic state = stepCost
   where
     (V2 currentX currentY) = state ^. position
     (V2 targetX targetY) = state ^. target
@@ -138,3 +143,15 @@ isAtJunctionOrEnd state = do
   grid <- ask
   let neighbouringPoints = gridOrthogonalNeighbours grid (state ^. position)
   pure undefined
+
+
+{- 
+ - Some things to try:
+ - Naive search first to get rid of possible neighbours to choose from?
+ - Accelerate down corridors to next junction.
+ - Debug by looking looking at the grid ever 20 steps or so (include previous locations visited on the map). Is my guy going round in circles or smt?
+ - oooh it's comparing nodes in the profile. I wonder if it takes too long to compare nodes with sets of points you've already visited
+ -
+ - Removing the set of visited nodes entirely improved the profile. But it's still not finding a solution particularly quickly.
+ - Maybe I can implement EQ so it only compares position and that's it? Or maybe position and direction?
+ -}

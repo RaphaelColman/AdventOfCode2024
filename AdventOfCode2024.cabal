@@ -75,7 +75,6 @@ library
   build-depends:
       PSQueue
     , advent-of-code-api >=0.2.8
-    , astar
     , base >=4.7 && <5
     , combinatorial
     , containers
@@ -114,7 +113,6 @@ executable AdventOfCode2024-exe
       AdventOfCode2024
     , PSQueue
     , advent-of-code-api >=0.2.8
-    , astar
     , base >=4.7 && <5
     , combinatorial
     , containers
@@ -154,7 +152,6 @@ test-suite AdventOfCode2024-test
       AdventOfCode2024
     , PSQueue
     , advent-of-code-api >=0.2.8
-    , astar
     , base >=4.7 && <5
     , combinatorial
     , containers
