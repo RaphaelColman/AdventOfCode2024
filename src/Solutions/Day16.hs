@@ -18,7 +18,6 @@ import Control.Lens.Setter ((.~))
 import Control.Monad.Extra (mapMaybeM)
 import Control.Monad.Reader (Reader, ask, lift, liftM, runReader)
 import Data.Function ((&))
-import qualified Data.HashSet as HS
 import Data.Hashable (Hashable)
 import Data.List ((\\))
 import qualified Data.Map as M
@@ -29,24 +28,29 @@ import Text.Parser.Combinators (some)
 import Text.Trifecta (CharParsing (anyChar), Parser)
 import Common.ApplicativeUtils (liftResult)
 import Debug.Trace
-import Algorithm.Search (aStarM)
+import Algorithm.Search (aStarM, aStarAssoc)
 import Control.Monad (when)
 import Common.Debugging (traceLns)
-import qualified Control.Applicative as quickly
+import qualified Data.Set as S
 
 data ReindeerState = MkReindeerState
   { _position :: !Point,
     _direction :: !Point,
     _costSoFar :: !Int,
-    _target :: !Point
+    _target :: !Point,
+    _visited :: !(S.Set Point)
   }
-  deriving (Show, Eq, Generic, Ord)
-
-instance Hashable ReindeerState
+  deriving (Show)
 
 type GridChar = Grid Char -- So I don't need to keep putting parentheses around Grid Char
 
 makeLenses ''ReindeerState
+
+instance Ord ReindeerState where
+  compare s1 s2 = compare (s1 ^. position) (s2 ^. position)
+
+instance Eq ReindeerState where
+  (==) s1 s2 = s1 ^. position == s2 ^. position
 
 aoc16 :: IO ()
 aoc16 = do
@@ -74,23 +78,21 @@ initState g = (state, newGrid)
   where
     start = findStart g
     end = findEnd g
-    state = MkReindeerState start (V2 1 0) 0 end 
+    state = MkReindeerState start (V2 1 0) 0 end (S.singleton start)
     newGrid = g & M.adjust (const '.') start & M.adjust (const '.') end
 
-neighbours :: ReindeerState -> Reader GridChar (HS.HashSet ReindeerState)
+neighbours :: ReindeerState -> Reader GridChar [ReindeerState]
 neighbours state = do
   nextStates <- mapMaybeM (\f -> f state) [moveForward, turnRight, turnLeft]
   let c = state ^. costSoFar
-  if (c `mod` 100 == 0)
-  then traceShow c $ pure $ HS.fromList nextStates
-  else pure $ HS.fromList nextStates
+  pure nextStates
 
 -- Should this be a MaybeT? Or a ReaderT? Not sure yet
 moveForward :: ReindeerState -> Reader GridChar (Maybe ReindeerState)
 moveForward state = do
   grid <- ask
   let nextPos = state ^. position + state ^. direction
-  if (grid M.! nextPos) == '#'
+  if (grid M.! nextPos) == '#' || S.member nextPos (state ^. visited)
     then pure Nothing
     else pure $ Just $ state & position .~ nextPos & costSoFar %~ (+ 1) 
 
@@ -104,15 +106,13 @@ turnLeft state = do
   let newDirection = state ^. direction & (* (-1)) & perp
   moveForward $ state & costSoFar %~ (+ 1000) & direction .~ newDirection
 
--- | https://hackage.haskell.org/package/search-algorithms-0.3.
--- Comes with base. I should probably switch to that because it has way more algorithms
 solve :: ReindeerState -> Reader GridChar (Maybe (Int, [ReindeerState]))
 solve state = do
-  aStarM neighbours costFun (liftResult heuristic) (liftResult goalReached) state
+  aStarM neighbours (liftResult costFun) (liftResult heuristic) (liftResult goalReached) state
 
 -- There must be a way to lift this into the Reader monad
-costFun :: ReindeerState -> ReindeerState -> Reader GridChar Int
-costFun state1 state2 = pure $ state2 ^. costSoFar - state1 ^. costSoFar
+costFun :: ReindeerState -> ReindeerState -> Int
+costFun state1 state2 = state2 ^. costSoFar - state1 ^. costSoFar
 
 -- | The heuristic will be the manhattan distance from current position to target
 heuristic :: ReindeerState -> Int
@@ -137,21 +137,3 @@ render state = do
           (V2 1 0) -> '>'
           (V2 (-1) 0) -> '<'
           _ -> 'X'
-
-isAtJunctionOrEnd :: ReindeerState -> Reader GridChar Bool
-isAtJunctionOrEnd state = do
-  grid <- ask
-  let neighbouringPoints = gridOrthogonalNeighbours grid (state ^. position)
-  pure undefined
-
-
-{- 
- - Some things to try:
- - Naive search first to get rid of possible neighbours to choose from?
- - Accelerate down corridors to next junction.
- - Debug by looking looking at the grid ever 20 steps or so (include previous locations visited on the map). Is my guy going round in circles or smt?
- - oooh it's comparing nodes in the profile. I wonder if it takes too long to compare nodes with sets of points you've already visited
- -
- - Removing the set of visited nodes entirely improved the profile. But it's still not finding a solution particularly quickly.
- - Maybe I can implement EQ so it only compares position and that's it? Or maybe position and direction?
- -}
