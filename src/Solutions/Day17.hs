@@ -3,19 +3,32 @@ module Solutions.Day17
   ) where
 
 import           Common.AoCSolutions (AoCSolution (MkAoCSolution),
-                                      printSolutions)
-import           Text.Trifecta       (Parser)
+                                      printSolutions, printTestSolutions)
+import           Text.Trifecta       (Parser, CharParsing (string), alphaNum, letter, upper, integer, some, commaSep)
+
+data Computer = MkComputer
+  { _aReg :: !Integer,
+    _bReg :: !Integer,
+    _cReg :: !Integer,
+    _program :: ![Integer]
+  }
+  deriving (Show, Eq)
 
 aoc17 :: IO ()
 aoc17 = do
-  printSolutions 17 $ MkAoCSolution parseInput part1
-  printSolutions 17 $ MkAoCSolution parseInput part2
+  printTestSolutions 17 $ MkAoCSolution parseInput part1
+  -- printSolutions 17 $ MkAoCSolution parseInput part2
 
-parseInput :: Parser String
-parseInput = undefined
+parseInput :: Parser Computer
+parseInput = do
+  [a, b, c] <- some parseRegister
+  string "Program: "
+  xs <- commaSep integer
+  pure $ MkComputer a b c xs
 
-part1 :: String -> String
-part1 = undefined
+parseRegister :: Parser Integer
+parseRegister = do
+  string "Register " >> upper >> string ": "
+  integer
 
-part2 :: String -> String
-part2 = undefined
+part1 = id
