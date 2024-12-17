@@ -108,11 +108,11 @@ turnLeft state = do
 
 solve :: ReindeerState -> Reader GridChar (Maybe (Int, [ReindeerState]))
 solve state = do
-  aStarM neighbours (liftResult costFun) (liftResult heuristic) (liftResult goalReached) state
+  aStarM neighbours costFun (liftResult heuristic) (liftResult goalReached) state
 
 -- There must be a way to lift this into the Reader monad
-costFun :: ReindeerState -> ReindeerState -> Int
-costFun state1 state2 = state2 ^. costSoFar - state1 ^. costSoFar
+costFun :: ReindeerState -> ReindeerState -> Reader GridChar Int
+costFun state1 state2 = pure $ state2 ^. costSoFar - state1 ^. costSoFar
 
 -- | The heuristic will be the manhattan distance from current position to target
 heuristic :: ReindeerState -> Int
