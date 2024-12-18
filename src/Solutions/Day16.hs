@@ -32,6 +32,7 @@ import Algorithm.Search (aStarM, aStarAssoc)
 import Control.Monad (when)
 import Common.Debugging (traceLns)
 import qualified Data.Set as S
+import Common.FunctorUtils (fmap2)
 
 data ReindeerState = MkReindeerState
   { _position :: !Point,
@@ -94,7 +95,7 @@ moveForward state = do
   let nextPos = state ^. position + state ^. direction
   if (grid M.! nextPos) == '#' || S.member nextPos (state ^. visited)
     then pure Nothing
-    else pure $ Just $ state & position .~ nextPos & costSoFar %~ (+ 1) 
+    else pure $ Just $ state & position .~ nextPos & costSoFar %~ (+ 1)
 
 turnRight :: ReindeerState -> Reader GridChar (Maybe ReindeerState)
 turnRight state = do
@@ -125,6 +126,17 @@ heuristic state = stepCost
 goalReached :: ReindeerState -> Bool
 goalReached state = state ^. position == state ^. target
 
+
+bfs :: ReindeerState -> Reader GridChar [[ReindeerState]]
+bfs state = go [[state]]
+  where
+    go :: [[ReindeerState]] -> Reader GridChar [[ReindeerState]]
+    go states = do
+      --First, check if any of the states are the goal state
+      incremented <- concat <$> traverse incrementState states
+      pure undefined
+    incrementState :: [ReindeerState] -> Reader GridChar [[ReindeerState]]
+    incrementState states@(st:_) = fmap2 (:states) $ neighbours st
 
 render :: ReindeerState -> Reader GridChar String
 render state = do

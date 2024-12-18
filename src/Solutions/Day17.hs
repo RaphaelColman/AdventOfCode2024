@@ -116,8 +116,7 @@ bdv :: Computer -> Maybe Computer
 bdv c = dv c bReg
 
 cdv :: Computer -> Maybe Computer
-cdv c = do
-  dv c cReg
+cdv c = dv c cReg
 
 dv :: Computer -> ASetter Computer Computer a Integer -> Maybe Computer
 dv c regGet = do

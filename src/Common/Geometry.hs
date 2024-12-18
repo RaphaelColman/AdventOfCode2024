@@ -85,3 +85,6 @@ gridSize grid = V2 xMax yMax
 
 simplify :: Integral a => V2 a -> V2 a
 simplify (V2 x y) = let g = gcd x y in V2 (x `div` g) (y `div` g)
+
+manhattanDistance :: Num a => V2 a -> V2 a -> a
+manhattanDistance (V2 x1 y1) (V2 x2 y2) = abs (x1 - x2) + abs (y1 - y2)
