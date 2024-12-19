@@ -3,19 +3,24 @@ module Solutions.Day19
   ) where
 
 import           Common.AoCSolutions (AoCSolution (MkAoCSolution),
-                                      printSolutions)
-import           Text.Trifecta       (Parser)
+                                      printSolutions, printTestSolutions)
+import           Text.Trifecta       (Parser, commaSep, CharParsing (anyChar, string), manyTill, letter, TokenParsing (token))
+import qualified Data.Set as S
+import Text.Parser.Combinators (some)
 
 aoc19 :: IO ()
 aoc19 = do
-  printSolutions 19 $ MkAoCSolution parseInput part1
-  printSolutions 19 $ MkAoCSolution parseInput part2
+  printTestSolutions 19 $ MkAoCSolution parseInput part1
+  --printSolutions 19 $ MkAoCSolution parseInput part2
 
-parseInput :: Parser String
-parseInput = undefined
+parseInput :: Parser ([String], [String])
+parseInput = do
+  towels <- parseTowels
+  string "\n\n"
+  stripeCombos <- some $ token $ some letter
+  pure $ (towels, stripeCombos)
 
-part1 :: String -> String
-part1 = undefined
+parseTowels :: Parser [String]
+parseTowels = commaSep $ some letter
 
-part2 :: String -> String
-part2 = undefined
+part1 = id
