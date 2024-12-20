@@ -7,39 +7,39 @@ module Solutions.Day16
   )
 where
 
+import Algorithm.Search (aStarAssoc, aStarM)
 import Common.AoCSolutions
   ( AoCSolution (MkAoCSolution),
     printSolutions,
     printTestSolutions,
   )
-import Common.Geometry (Grid, Point, enumerateMultilineStringToVectorMap, renderVectorMap, gridOrthogonalNeighbours)
+import Common.ApplicativeUtils (liftResult)
+import Common.Debugging (traceLns)
+import Common.FunctorUtils (fmap2)
+import Common.Geometry (Grid, Point, enumerateMultilineStringToVectorMap, gridOrthogonalNeighbours, renderVectorMap)
 import Control.Lens (makeLenses, to, (%~), (^.))
 import Control.Lens.Setter ((.~))
+import Control.Monad (when)
 import Control.Monad.Extra (mapMaybeM)
 import Control.Monad.Reader (Reader, ask, lift, liftM, runReader)
 import Data.Function ((&))
 import Data.Hashable (Hashable)
-import Data.List ((\\))
+import Data.List (nub, partition, (\\))
 import qualified Data.Map as M
 import Data.Maybe
+import qualified Data.Set as S
+import Debug.Trace
 import GHC.Generics (Generic)
 import Linear.V2 (V2 (V2), perp, _x, _y)
 import Text.Parser.Combinators (some)
 import Text.Trifecta (CharParsing (anyChar), Parser)
-import Common.ApplicativeUtils (liftResult)
-import Debug.Trace
-import Algorithm.Search (aStarM, aStarAssoc)
-import Control.Monad (when)
-import Common.Debugging (traceLns)
-import qualified Data.Set as S
-import Common.FunctorUtils (fmap2)
 
 data ReindeerState = MkReindeerState
   { _position :: !Point,
     _direction :: !Point,
     _costSoFar :: !Int,
     _target :: !Point,
-    _visited :: !(S.Set Point)
+    _path :: ![Point]
   }
   deriving (Show)
 
@@ -57,7 +57,7 @@ aoc16 :: IO ()
 aoc16 = do
   printSolutions 16 $ MkAoCSolution parseInput part1
 
--- printSolutions 16 $ MkAoCSolution parseInput part2
+  printSolutions 16 $ MkAoCSolution parseInput part2
 
 parseInput :: Parser (Grid Char)
 parseInput = do
@@ -67,6 +67,16 @@ part1 input = fst <$> solved
   where
     (initialState, grid) = initState input
     solved = runReader (solve initialState) grid
+
+part2 :: M.Map Point Char -> Maybe Int
+part2 input = do
+  (cost, path) <- runReader (solve initialState) grid
+  traceShowM $ "Lowest cost: " ++ show cost
+  let allPaths = map _path $ runReader (exhaustiveBfs cost initialState) grid
+  let totalTiles = length $ nub $ concat allPaths
+  pure totalTiles
+  where
+    (initialState, grid) = initState input
 
 findStart :: Grid Char -> Point
 findStart g = M.filter (== 'S') g & M.keys & head
@@ -79,23 +89,27 @@ initState g = (state, newGrid)
   where
     start = findStart g
     end = findEnd g
-    state = MkReindeerState start (V2 1 0) 0 end (S.singleton start)
+    state = MkReindeerState start (V2 1 0) 0 end [start]
     newGrid = g & M.adjust (const '.') start & M.adjust (const '.') end
 
 neighbours :: ReindeerState -> Reader GridChar [ReindeerState]
 neighbours state = do
-  nextStates <- mapMaybeM (\f -> f state) [moveForward, turnRight, turnLeft]
-  let c = state ^. costSoFar
-  pure nextStates
+  mapMaybeM (\f -> f state) [moveForward, turnRight, turnLeft]
 
 -- Should this be a MaybeT? Or a ReaderT? Not sure yet
 moveForward :: ReindeerState -> Reader GridChar (Maybe ReindeerState)
 moveForward state = do
   grid <- ask
   let nextPos = state ^. position + state ^. direction
-  if (grid M.! nextPos) == '#' || S.member nextPos (state ^. visited)
+  if (grid M.! nextPos) == '#' || nextPos == state ^. position -- Dunno if this will work. You might have to take direction into account
     then pure Nothing
-    else pure $ Just $ state & position .~ nextPos & costSoFar %~ (+ 1)
+    else
+      pure $
+        Just $
+          state
+            & position .~ nextPos
+            & costSoFar %~ (+ 1)
+            & path %~ (nextPos :)
 
 turnRight :: ReindeerState -> Reader GridChar (Maybe ReindeerState)
 turnRight state = do
@@ -126,26 +140,34 @@ heuristic state = stepCost
 goalReached :: ReindeerState -> Bool
 goalReached state = state ^. position == state ^. target
 
-
-bfs :: ReindeerState -> Reader GridChar [[ReindeerState]]
-bfs state = go [[state]]
+exhaustiveBfs :: Int -> ReindeerState -> Reader GridChar [ReindeerState]
+exhaustiveBfs knownShortestDistance state = go [state] [] M.empty
   where
-    go :: [[ReindeerState]] -> Reader GridChar [[ReindeerState]]
-    go states = do
-      --First, check if any of the states are the goal state
-      incremented <- concat <$> traverse incrementState states
-      pure undefined
-    incrementState :: [ReindeerState] -> Reader GridChar [[ReindeerState]]
-    incrementState states@(st:_) = fmap2 (:states) $ neighbours st
+    go :: [ReindeerState] -> [ReindeerState] -> M.Map Point Int -> Reader GridChar [ReindeerState]
+    go states winners costMap
+      | null states = pure winners
+      | otherwise = do
+          let underBudget =
+                filter
+                  ( \s ->
+                      s ^. costSoFar <= knownShortestDistance && s ^. costSoFar <= M.findWithDefault maxBound (s ^. position) costMap
+                  )
+                  states
+          let (winners', rest) = partition goalReached underBudget
+          newStates <- concat <$> traverse neighbours rest
+          let stateCosts = M.fromList $ map (\s -> (s ^. position, s ^. costSoFar)) newStates
+          let costMap' = M.unionWith min costMap stateCosts
+          ($!) go newStates (winners ++ winners') costMap'
 
 render :: ReindeerState -> Reader GridChar String
 render state = do
   grid <- ask
   let grid' = M.insert (state ^. position) dChar grid
   pure $ renderVectorMap grid'
-  where dChar = case state ^. direction of
-          (V2 0 1) -> 'v'
-          (V2 0 (-1)) -> '^'
-          (V2 1 0) -> '>'
-          (V2 (-1) 0) -> '<'
-          _ -> 'X'
+  where
+    dChar = case state ^. direction of
+      (V2 0 1) -> 'v'
+      (V2 0 (-1)) -> '^'
+      (V2 1 0) -> '>'
+      (V2 (-1) 0) -> '<'
+      _ -> 'X'
