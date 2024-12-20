@@ -25,6 +25,7 @@ import qualified Data.Sequence as Seq
 import Debug.Trace (trace, traceM, traceShowM)
 import Text.Printf (printf)
 import Text.Trifecta (CharParsing (string), Parser, alphaNum, commaSep, integer, letter, some, upper)
+import Data.Foldable (Foldable(toList))
 
 type ThreeBit = Finite 8
 
@@ -38,9 +39,16 @@ data Computer = MkComputer
     _pointer :: !Int,
     _output :: ![ThreeBit]
   }
-  deriving (Show, Eq)
+  deriving (Eq)
 
 makeLenses ''Computer
+
+instance Show Computer where
+  show c = printf "Register A: %d\nRegister B: %d\nRegister C: %d\n\nProgram:%s\nPointer: %d\nOutput: %s\n"
+    (_aReg c) (_bReg c) (_cReg c) showProgram (_pointer c) showOutput
+    where
+      showProgram = show $ map getFinite $ toList $ c ^. program
+      showOutput = show $ map getFinite $ toList $ c ^. output
 
 aoc17 :: IO ()
 aoc17 = do
@@ -64,6 +72,7 @@ part1 = getOutput . runUntilNothing step
 
 step :: Computer -> Maybe Computer
 step c = do
+  traceShowM c
   instr <- (c ^. program) Seq.!? (c ^. pointer)
   let opcode :: Opcode = toEnum $ fromIntegral $ getFinite instr
   let advancedC = c & pointer %~ (+ 1)
@@ -119,12 +128,12 @@ cdv :: Computer -> Maybe Computer
 cdv c = dv c cReg
 
 dv :: Computer -> ASetter Computer Computer a Integer -> Maybe Computer
-dv c regGet = do
+dv c regLens = do
   comboOperand <- resolveComboOperand c
   let numerator = c ^. aReg
   let denominator = 2 ^ comboOperand
   let result = numerator `div` denominator
-  pure $ c & regGet .~ result & pointer %~ (+ 1)
+  pure $ c & regLens .~ result & pointer %~ (+ 1)
 
 resolveComboOperand :: Computer -> Maybe Integer
 resolveComboOperand c = do

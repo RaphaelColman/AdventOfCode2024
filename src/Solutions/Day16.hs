@@ -56,7 +56,6 @@ instance Eq ReindeerState where
 aoc16 :: IO ()
 aoc16 = do
   printSolutions 16 $ MkAoCSolution parseInput part1
-
   printSolutions 16 $ MkAoCSolution parseInput part2
 
 parseInput :: Parser (Grid Char)
