@@ -73,7 +73,8 @@ library
   hs-source-dirs:
       src
   build-depends:
-      PSQueue
+      MemoTrie
+    , PSQueue
     , advent-of-code-api >=0.2.8
     , base >=4.7 && <5
     , combinatorial
@@ -111,6 +112,7 @@ executable AdventOfCode2024-exe
   ghc-options: -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       AdventOfCode2024
+    , MemoTrie
     , PSQueue
     , advent-of-code-api >=0.2.8
     , base >=4.7 && <5
@@ -150,6 +152,7 @@ test-suite AdventOfCode2024-test
   ghc-options: -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       AdventOfCode2024
+    , MemoTrie
     , PSQueue
     , advent-of-code-api >=0.2.8
     , base >=4.7 && <5

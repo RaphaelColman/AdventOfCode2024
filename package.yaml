@@ -47,6 +47,7 @@ dependencies:
 - range
 - hashable
 - search-algorithms
+- MemoTrie
 
 library:
   source-dirs: src
