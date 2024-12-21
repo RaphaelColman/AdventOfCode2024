@@ -1,0 +1,75 @@
+mine: v<<A>>^A<A>AvA^<AA>Av<AAA>^A
+aoc:  v<<A>>^A<A>AvA<^AA>A<vAAA>^A
+
+
+mine: v<A<AA>>^AvAA^<A>Av<<A>>^AvA^Av<A>^A<Av<A>>^AAvA^Av<A<A>>^AAAvA^<A>A
+aoc:  <vA<AA>>^AvAA<^A>A<v<A>>^AvA^A<vA>^A<v<A>^A>AAvA^A<v<A>A>^AAAvA<^A>A
+
+--This is nearly right...
+
+                                              this bit
+mine: v<A<AA>>^AvAA^<A>Av<<A>>^AvA^Av<A>^A<  Av<A>>^ AAvA^Av<A<A>>^AAAvA^<A>A
+aoc:  <vA<AA>>^AvAA<^A>A<v<A>>^AvA^A<vA>^A<  v<A>^A> AAvA^A<v<A>A>^AAAvA<^A>A
+
+
+compare the aoc to itself:
+
+aoc:    v <<   A >>  ^ A   <   A > A  v  A     <  ^  AA > A   < v  AAA >  ^ A
+aoc:  <vA<AA>>^AvAA<^A>A<v<A>>^AvA^A<vA>^A<  v<A>^A> AAvA^A<v<A>A>^AAAvA<^A>A
+
+
+and compare mine to itself:
+
+mine:   v <<   A >>  ^ A   <   A > A  v  A   ^  <    AA >Av<AAA>^A
+mine: v<A<AA>>^AvAA^<A>Av<<A>>^AvA^Av<A>^A<  Av<A>>^ AAvA^Av<A<A>>^AAAvA^<A>A
+
+ok this is not broken. It's because my intermediate step is slightly different
+
+
+
+Got this working BUT it is not right for the code:
+379A
+My length is 68. The AOC length is 64
+Mine: v<<A>>^AvA^Av<<A>>^AAv<A<A>>^AAvAA^<A>Av<A>^AA<A>Av<A<A>>^AAAvA^<A>A
+aoc:  <v<A>>^AvA^A<vA<AA>>^AAvA<^A>AAvA^A<vA>^AA<A>A<v<A>A>^AAAvA<^A>A
+                    |
+                   here (AoC presses A earlier)
+
+Mine fully:
+379A
+^A^^<<A>>AvvvA
+<A>A<AAv<AA>>^AvAA^Av<AAA>^A
+v<<A>>^AvA^Av<<A>>^AAv<A<A>>^AAvAA^<A>Av<A>^AA<A>Av<A<A>>^AAAvA^<A>A"
+
+Let's be optimistic and verify the second and third steps first:
+   <   A > A   <   AA  v <   AA >>  ^ A  v  AA ^ A  v <   AAA >  ^ A
+v<<A>>^AvA^Av<<A>>^AAv<A<A>>^AAvAA^<A>Av<A>^AA<A>Av<A<A>>^AAAvA^<A>A"
+
+--looks sensible. Gonna dig in a bit later. Let's compare 1st and 2nd
+
+ ^ A ^^  <<   A >> A  vvv  A
+<A>A<AAv<AA>>^AvAA^Av<AAA>^A
+
+also looks sensible.
+Code to dir?
+ 3    7  9   A
+^A^^<<A>>AvvvA
+
+
+Mine
+v<<A>>^AvA^Av<<A>>^AAv<A<A>>^AAvAA^<A>Av<A>^AA<A>Av<A<A>>^AAAvA^<A>A" (69)
+   <   A > A   <   AA  v <   AA >>  ^ A  v  AA ^ A  v <   AAA >  ^ A  (28)
+       ^   A       ^^        <<       A     >>   A        vvv      A  (14)
+           3                          7          9                 A  (4)
+
+
+
+AoC
+<v<A>>^AvA^A<vA<AA>>^AAvA<^A>AAvA^A<vA>^AA<A>A<v<A>A>^AAAvA<^A>A     (64)
+   <   A > A  v <<   AA >  ^ AA > A  v  AA
+       ^   A         <<      ^^   A     >>
+           3                      7
+
+Ok so it looks like both get the code, but the AoC one is faster.
+The first robot goes << ^^ rather than >> ^^ which turnsout to be quicker.
+Presumably one of the other robots has to move less.
