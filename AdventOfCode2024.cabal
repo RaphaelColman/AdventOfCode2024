@@ -85,6 +85,7 @@ library
     , hashable
     , lens
     , linear
+    , maximal-cliques
     , monad-extras
     , monad-loops
     , mtl
@@ -124,6 +125,7 @@ executable AdventOfCode2024-exe
     , hashable
     , lens
     , linear
+    , maximal-cliques
     , monad-extras
     , monad-loops
     , mtl
@@ -164,6 +166,7 @@ test-suite AdventOfCode2024-test
     , hashable
     , lens
     , linear
+    , maximal-cliques
     , monad-extras
     , monad-loops
     , mtl

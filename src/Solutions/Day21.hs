@@ -21,6 +21,7 @@ import Linear.V2 (V2 (V2))
 import Text.Parser.Combinators (some)
 import Text.Parser.Token (token)
 import Text.Trifecta (CharParsing (anyChar), Parser, alphaNum, letter)
+import Combinatorics (permute)
 
 type Keymap = M.Map Char (V2 Int)
 
@@ -33,7 +34,7 @@ aoc21 = do
 parseInput :: Parser [String]
 parseInput = some $ token $ some alphaNum
 
-part1 input = fullSequence "379A"
+part1 input = numpadKeyPaths '3' '7'
 
 numpadKeyPath :: Char -> Char -> [Char]
 numpadKeyPath start end = rights ++ ups ++ lefts ++ downs ++ "A"
@@ -43,6 +44,18 @@ numpadKeyPath start end = rights ++ ups ++ lefts ++ downs ++ "A"
     downs = replicate y 'v'
     lefts = replicate (-x) '<'
     ups = replicate (-y) '^'
+    numpadKeys = M.fromList $ zip "789456123 0A" pts
+      where
+        pts = [V2 x y | y <- [0 .. 3], x <- [0 .. 2]]
+
+numpadKeyPaths :: Char -> Char -> [String]
+numpadKeyPaths start end = permute asChars --dang. <<vv appears twice (technically two different combos)
+--Maybe we can do this with some sort of cartesian
+  where
+    (V2 x y) = numpadKeys M.! end - numpadKeys M.! start
+    xMoves = replicate (abs x) (V2 (signum x) 0)
+    yMoves = replicate (abs y) (V2 0 (signum y))
+    asChars = map unitVectorToChar $ xMoves ++ yMoves
     numpadKeys = M.fromList $ zip "789456123 0A" pts
       where
         pts = [V2 x y | y <- [0 .. 3], x <- [0 .. 2]]
@@ -60,10 +73,10 @@ dirpadKeyPath start end = downs ++ rights ++ ups ++ lefts ++ "A"
         pts = [V2 x y | y <- [0 .. 1], x <- [0 .. 2]]
 
 expandCode :: String -> String
-expandCode code = traceShow code $ concatMap (uncurry numpadKeyPath) $ window2 ('A' : code)
+expandCode code = concatMap (uncurry numpadKeyPath) $ window2 ('A' : code)
 
 expandDirpath :: String -> String
-expandDirpath dirpath = traceShow dirpath $ concatMap (uncurry dirpadKeyPath) $ window2 ('A' : dirpath)
+expandDirpath dirpath = concatMap (uncurry dirpadKeyPath) $ window2 ('A' : dirpath)
 
 fullSequence :: String -> String
 fullSequence = expandDirpath . expandDirpath . expandCode
@@ -73,3 +86,10 @@ complexity code = (length dirpath, numPart)
   where
     numPart :: Int = read $ takeWhile isDigit code
     dirpath = fullSequence code
+
+unitVectorToChar :: V2 Int -> Char
+unitVectorToChar v = case v of
+  V2 0 1 -> '^'
+  V2 0 (-1) -> 'v'
+  V2 1 0 -> '>'
+  V2 (-1) 0 -> '<'

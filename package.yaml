@@ -48,6 +48,7 @@ dependencies:
 - hashable
 - search-algorithms
 - MemoTrie
+- maximal-cliques
 
 library:
   source-dirs: src
