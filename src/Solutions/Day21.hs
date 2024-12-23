@@ -17,7 +17,7 @@ import Common.ListUtils (window2)
 import Data.Char (isDigit)
 import Data.Function ((&))
 import Data.List (minimumBy, scanl')
-import qualified Data.Map as M
+import qualified Data.Map.Strict as M
 import Data.MemoTrie (memo2)
 import Data.Ord (comparing)
 import Debug.Trace (trace, traceShow)
@@ -27,18 +27,30 @@ import Text.Parser.Combinators (some)
 import Text.Parser.Token (token)
 import Text.Printf (printf)
 import Text.Trifecta (CharParsing (anyChar), Parser, alphaNum, letter)
+import Control.Monad.State (State, MonadState (get), modify, runState, evalState)
 
 type Keymap = M.Map Char (V2 Int)
+type Cache = M.Map (Char, Char, Integer) String
 
 aoc21 :: IO ()
-aoc21 = printTestSolutions 21 $ MkAoCSolution parseInput part1
-
--- printSolutions 21 $ MkAoCSolution parseInput part2
+aoc21 = do
+  --printSolutions 21 $ MkAoCSolution parseInput part1
+  printSolutions 21 $ MkAoCSolution parseInput part2
 
 parseInput :: Parser [String]
 parseInput = some $ token $ some alphaNum
 
-part1 input = sum $ map complexity input
+part1 = solve 3
+
+part2 = solve 26
+
+solve :: Integer -> [String] -> Integer
+solve numRobots input = evalState (do
+                  a <- traverse (complexity numRobots) input
+                  pure $ sum a
+                  ) M.empty
+
+
 
 bestInput :: Integer -> String -> String
 bestInput level input
@@ -49,11 +61,33 @@ bestInput level input
     m = map (\(a, b) -> allPaths M.! (a, b)) pairs
     asBestInput = fmap2 (bestInput (level - 1)) m
 
-complexity :: String -> Integer
-complexity code = toInteger (length dirpath) * numPart
+bestInputMemoized :: Integer -> String -> State Cache String
+bestInputMemoized level input
+  | level == 0 = pure input
+  | otherwise = do
+    let pairs = window2 ('A' : input)
+    a <- traverse (lookupPair <$> fst <*> snd) pairs
+    pure $ concat a
+  where
+    lookupPair :: Char -> Char -> State Cache String
+    lookupPair a b = do
+      cache <- get
+      case M.lookup (a, b, level) cache of
+        Just path -> pure path
+        Nothing -> do
+          ap <- traverse (bestInputMemoized (level-1)) $ allPaths M.! (a, b)
+          let best = ($!) minimumBy (comparing length) ap
+          modify $ M.insert (a, b, level) best
+          pure best
+
+complexity :: Integer -> String -> State Cache Integer
+complexity numberOfRobots code = do--toInteger (length dirpath') * numPart
+  let numPart :: Integer = read $ takeWhile isDigit code
+  dirpath <- memo2 bestInputMemoized numberOfRobots code
+  let codeAsInteger :: Integer =  read $ takeWhile isDigit code
+  pure $ codeAsInteger * toInteger (length dirpath)
   where
     numPart :: Integer = read $ takeWhile isDigit code
-    dirpath = bestInput 3 code
 
 unitVectorToChar :: V2 Int -> Char
 unitVectorToChar v = case v of
