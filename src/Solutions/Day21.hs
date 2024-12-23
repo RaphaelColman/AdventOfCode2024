@@ -28,7 +28,6 @@ import Text.Printf (printf)
 import Text.Trifecta (CharParsing (anyChar), Parser, alphaNum, letter)
 import Control.Monad.State.Strict (State, MonadState (get), modify, runState, evalState)
 
-type Keymap = M.Map Char (V2 Int)
 type Cache = M.Map (Char, Char, Integer) Integer
 
 aoc21 :: IO ()
@@ -54,7 +53,7 @@ bestInputMemoized level input
   | level == 0 = pure $ toInteger $ length input
   | otherwise = do
     let pairs = window2 ('A' : input)
-    sum <$> traverse (lookupPair <$> fst <*> snd) pairs
+    sum <$> traverse (uncurry lookupPair) pairs
   where
     lookupPair :: Char -> Char -> State Cache Integer
     lookupPair a b = do
