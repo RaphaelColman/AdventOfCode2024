@@ -13,7 +13,9 @@ import Data.Function ((&))
 import qualified Data.Map as M
 import qualified Data.Set as S
 import Text.Trifecta (CharParsing (char), Parser, TokenParsing (token), count, letter, some)
-import Data.List (sort, nub)
+import Data.List (sort, nub, maximumBy, intercalate)
+import Data.Algorithm.MaximalCliques (getMaximalCliques)
+import Data.Ord (comparing)
 
 type Connection = (String, String)
 
@@ -22,8 +24,7 @@ type ConnectionMap = M.Map String (S.Set String)
 aoc23 :: IO ()
 aoc23 = do
   printSolutions 23 $ MkAoCSolution parseInput part1
-
--- printSolutions 23 $ MkAoCSolution parseInput part2
+  printSolutions 23 $ MkAoCSolution parseInput part2
 
 parseInput :: Parser [Connection]
 parseInput = some $ token parseConnection
@@ -41,6 +42,10 @@ part1 input = length tComputers
     cliquesSize3 = cliqueSize3 mp
     tComputers = S.filter (\(a, b, c) -> any (\x -> head x == 't') [a,b,c]) cliquesSize3
 
+part2 input = password $ largestClique mp
+  where
+    mp = makeIntoMap input
+
 makeIntoMap :: [Connection] -> ConnectionMap
 makeIntoMap = foldr f M.empty
   where
@@ -56,6 +61,10 @@ cliqueSize3 mp = S.fromList $ map (\[a,b,c] -> (a,b,c)) $ [sort [n1, n2, n3] |
                   n3 <- S.toList (mp M.! n2),
                   n1 `S.member` (mp M.! n3)]
 
-maximalCliques :: ConnectionMap -> [[String]]
-maximalCliques mp = undefined
+largestClique :: ConnectionMap -> [String]
+largestClique mp = getMaximalCliques (\a b -> S.member b (mp M.! a)) (M.keys mp)
+                  & maximumBy (comparing length)
+
+password :: [String] -> String
+password cs = sort cs & intercalate ","
 
