@@ -29,6 +29,7 @@ library
       Common.ApplicativeUtils
       Common.BinaryUtils
       Common.Debugging
+      Common.EitherUtils
       Common.EnumUtils
       Common.FileUtils
       Common.Floyd

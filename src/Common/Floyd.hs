@@ -17,7 +17,7 @@ import GHC.OldList (findIndex)
 data CycleData a
   = MkCycleData
   { _index :: !Int,
-    _length :: !Int,
+    _cycleLength :: !Int,
     _node :: !a
   }
   deriving (Eq, Show)
