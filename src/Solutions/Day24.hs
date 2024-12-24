@@ -11,9 +11,10 @@ import Common.AoCSolutions
     printSolutions,
     printTestSolutions,
   )
-import Common.BinaryUtils (boolsToBinaryString, toDecimal, pad0)
+import Common.BinaryUtils (boolsToBinaryString, pad0, toDecimal)
 import Common.EitherUtils (withLeft)
 import Data.Bits (xor)
+import Data.Foldable (foldlM)
 import Data.Function ((&))
 import Data.List (sort)
 import qualified Data.Map as M
@@ -21,9 +22,10 @@ import Debug.Trace (traceM, traceShow, traceShowM)
 import Text.Parser.Combinators (try)
 import Text.Parser.Token (TokenParsing (token))
 import Text.Trifecta (CharParsing (char, string), Parser, alphaNum, integer, letter, manyTill, some, upper)
-import Data.Foldable (foldlM)
 
 type WireLabel = String
+
+type AssertionResult = (Assertion, Maybe WireLabel)
 
 data Op = AND | OR | XOR deriving (Eq, Show, Enum, Bounded, Ord)
 
@@ -108,13 +110,20 @@ part1 input = result
         & boolsToBinaryString
         & toDecimal
 
-part2 input = findBrokenAdder wiremap
+part2 input = solve manuallyCorrected
   where
     wiremap = makeWireMap input
-    corrected = undefined
+    manuallyCorrected = applyManualCorrection wiremap
 
-findBrokenAdder :: WireMap -> Either Assertion WireLabel
-findBrokenAdder wiremap = foldlM go "kvj" [1..44]
+solve :: WireMap -> [AssertionResult]
+solve = go []
+  where
+    go found wm = traceShow found $ case findBrokenAdder wm of
+                Left ar -> go (ar:found) (fixWiremap wm ar)
+                Right _ -> found
+
+findBrokenAdder :: WireMap -> Either (Assertion, Maybe WireLabel) WireLabel
+findBrokenAdder wiremap = foldlM go "kvj" [1 .. 44]
   where
     go overflow sig = analyseFullAdder wiremap sig overflow
 
@@ -128,7 +137,7 @@ resolveWires wires = mp
     go OrGate {..} = let val = (mp M.! _wire1) || (mp M.! _wire2) in (_label, val)
     go XorGate {..} = let val = (mp M.! _wire1) `xor` (mp M.! _wire2) in (_label, val)
 
-analyseFullAdder :: WireMap -> Integer -> WireLabel -> Either Assertion WireLabel
+analyseFullAdder :: WireMap -> Integer -> WireLabel -> Either (Assertion, Maybe WireLabel) WireLabel
 analyseFullAdder mp sig overflow = do
   let sigString = pad0 2 (show sig)
   let x = 'x' : sigString
@@ -140,15 +149,15 @@ analyseFullAdder mp sig overflow = do
   c <- assertGate mp $ MkAssertion a overflow AND
   assertGate mp $ MkAssertion b c OR
 
-assertGate :: WireMap -> Assertion -> Either Assertion WireLabel
+assertGate :: WireMap -> Assertion -> Either (Assertion, Maybe WireLabel) WireLabel
 assertGate mp a = case a of
   MkAssertion {..} -> do
-    M.lookup (asMapKey _w1 _w2 _op) mp & withLeft a
+    M.lookup (asMapKey _w1 _w2 _op) mp & withLeft (a, Nothing)
   MkOutputAssertion {..} -> do
-    dest <- M.lookup (asMapKey _w1 _w2 _op) mp & withLeft a
+    dest <- M.lookup (asMapKey _w1 _w2 _op) mp & withLeft (a, Nothing)
     if dest == _output
       then Right dest
-      else traceShow dest $ Left a
+      else Left (a, Just dest)
 
 asMapKey a b op = let [a', b'] = sort [a, b] in (a', b', op)
 
@@ -157,18 +166,38 @@ makeWireMap = foldr go M.empty
   where
     go :: Wire -> WireMap -> WireMap
     go wire mp = case wire of
-                  Leaf _ _ -> mp
-                  AndGate l w1 w2 -> M.insert (asMapKey w1 w2 AND) l mp
-                  OrGate l w1 w2 -> M.insert (asMapKey w1 w2 OR) l mp
-                  XorGate l w1 w2 -> M.insert (asMapKey w1 w2 XOR) l mp
+      Leaf _ _ -> mp
+      AndGate l w1 w2 -> M.insert (asMapKey w1 w2 AND) l mp
+      OrGate l w1 w2 -> M.insert (asMapKey w1 w2 OR) l mp
+      XorGate l w1 w2 -> M.insert (asMapKey w1 w2 XOR) l mp
 
-{-
- - So some validation algorithm: given generation N and the prev overflow wire (called OF):
- - Get the input wires: xN and yN
- - xN XOR yN -> A. 
- - A XOR OF -> zN
- - xN AND yN -> B
- - A AND OF -> C
- - B OR C -> NOF (new overflow)
- - As long as we found NOF we're good
- -}
+fixWiremap :: WireMap -> AssertionResult -> WireMap
+fixWiremap wm (MkOutputAssertion {..}, Just output1) =
+  wm
+    & M.insert key1 output2
+    & M.insert key2 output1
+  where
+    key1 = asMapKey _w1 _w2 _op
+    (key2, output2) = head $ M.toList $ M.filter (== _output) wm
+fixWiremap wm (MkOutputAssertion {..}, Nothing) = undefined
+  where
+    (key2, output2) = head $ M.toList $ M.filter (== _output) wm
+fixWiremap wm ar = error $ "Couldn't fix wiremap from assertion result: " ++ show ar
+
+
+--I can see from the diagram that x35 and y35 AND and OR have been swapped. My algorithm only notices a step later
+--because both operations are still expected and valid, it's just that their destinations are swapped and so pointing at the wrong things.
+--To find these nodes programatically I think I'd need to write an algorithm which backtracks when it hits an error.
+applyManualCorrection :: WireMap -> WireMap
+applyManualCorrection wm = traceShow (k1, v1, k2, v2)
+  wm
+    & M.insert k1 v2
+    & M.insert k2 v1
+  where
+    v1 = wm M.! k1
+    v2 = wm M.! k2
+    k1 = asMapKey "x35" "y35" AND
+    k2 = asMapKey "x35" "y35" XOR
+
+
+
