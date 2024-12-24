@@ -2,6 +2,7 @@ module Common.BinaryUtils where
 
 import Numeric.Lens ( binary, hex )
 import Control.Lens ((^?), (^?!), (^.), re)
+import Data.Char (intToDigit)
 
 toDecimal :: String -> Integer
 toDecimal = sum . (zipWith (*) [2 ^ n | n <- [0,1 ..]]) . reverse . asIntList
@@ -18,3 +19,6 @@ toBinaryString x = x ^. re binary
 pad0 :: Int -> String -> String
 pad0 targetLen str = replicate times '0' ++ str
   where times = targetLen - length str
+
+boolsToBinaryString :: [Bool] -> String
+boolsToBinaryString = map (intToDigit . fromEnum)
