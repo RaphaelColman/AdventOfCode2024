@@ -1,8 +1,8 @@
 module Common.MapUtils where
 
 import           Data.Either   (partitionEithers)
-import           Data.Foldable (minimumBy)
-import           Data.Function (on)
+import           Data.Foldable (minimumBy, Foldable (toList))
+import           Data.Function (on, (&))
 import qualified Data.Map      as M
 import qualified Data.IntMap as IM
 
@@ -45,3 +45,6 @@ instance (Monoid a) => Monoid (MonoidIntMap a) where
 
 instance (Semigroup a) => Semigroup (MonoidIntMap a) where
   (<>) (MkMonoidIntMap mapA) (MkMonoidIntMap mapB) = MkMonoidIntMap $ IM.unionWith (<>) mapA mapB
+
+associateBy :: (Ord b, Foldable f) => (a -> b) -> f a -> M.Map b [a]
+associateBy fn xs = M.fromListWith (++) $ map (\a -> (fn a, [a])) $ toList xs

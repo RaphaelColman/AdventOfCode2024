@@ -9,26 +9,31 @@ import Common.AoCSolutions
     printTestSolutions,
   )
 import Common.Debugging (traceLns)
-import Common.Geometry (Grid, Point, allOrthogonalNeighbours, enumerateMultilineStringToVectorMap, gridOrthogonalNeighbours, renderVectorSet)
+import Common.Geometry (Grid, Point, allOrthogonalDirections, allOrthogonalNeighbours, enumerateMultilineStringToVectorMap, gridOrthogonalNeighbours, renderVectorSet)
+import Common.ListUtils (window2)
+import Common.MapUtils (associateBy)
+import Control.Lens ((^.))
 import Data.Function ((&))
 import Data.List
 import qualified Data.Map as M
 import qualified Data.Set as S
+import Data.Traversable (for)
 import Debug.Trace
-import Linear.V2 (V2 (V2))
+import Linear.V2 (R1 (_x), R2 (_y), V2 (..))
+import Safe (headMay)
 import Text.Printf (printf)
 import Text.Trifecta (CharParsing (anyChar), Parser, some)
-import Data.Traversable (for)
 
 type Region = S.Set Point
+
 type Side = [Point]
+
 type PlantType = Char
 
 aoc12 :: IO ()
 aoc12 = do
-  printSolutions 12 $ MkAoCSolution parseInput part1
-
--- printSolutions 12 $ MkAoCSolution parseInput part2
+  printTestSolutions 12 $ MkAoCSolution parseInput part1
+  printSolutions 12 $ MkAoCSolution parseInput part2
 
 parseInput :: Parser (Grid Char)
 parseInput = enumerateMultilineStringToVectorMap <$> some anyChar
@@ -37,11 +42,12 @@ part1 input = sum $ map cost regions
   where
     regions = findRegions input
 
-part2 :: String -> String
-part2 = undefined
+part2 input = sum $ map costWithSides regions
+  where
+    regions = findRegions input
 
 -- | Given a grid and a point, expand the region of the same plant type as the point
--- Seems like we should be able to do this using unfold or cata
+-- Seems like we should be able to do this using unfold or ana
 expandToRegion :: Grid PlantType -> Point -> Region
 expandToRegion grid point = go (S.singleton point) (S.singleton point)
   where
@@ -80,32 +86,27 @@ perimeter region = length $ filter (`S.notMember` region) surroundingPoints
 cost :: Region -> Int
 cost region = perimeter region * S.size region
 
+costWithSides :: Region -> Int
+costWithSides region = countSides region * S.size region
 
--- | This has to take all "outer" points to work
-countSides :: Region -> Int
-countSides region = go [[]] region
+countSidesForDirection :: Region -> V2 Int -> Int
+countSidesForDirection region direction = sum $ M.map countSidesForGroup grouped
   where
-    point = S.findMin region
-    go :: [Side] -> Region -> Int
-    go sides remainingPoints
-      | null sides = undefined go [[pt]] newRemainingPoints
-      | null remainingPoints = length sides
-      | null vertNeighbours && null horizontalNeighbours = go ([pt] : sides) (S.delete pt remainingPoints)
-      | not (null vertNeighbours) && not (null horizontalNeighbours) = error "Both horizontal and vertical neighbours found"
-      | not (null vertNeighbours) = go [[]] (remainingPoints `S.difference` vertNeighbours)
-      --This won't work. Once we've added the vert neighbours we need to repeat the algorithm for
-      -- the 1 or 2 points we've added. but this will just go and look in remainingPoints.
-      -- So maybe we have a function which is "expand pt to side" which returns a side from a point
-      where
-        pt = S.findMin remainingPoints -- Will this be slow? Let's try it and see
-        vertNeighbours = S.fromList [pt + V2 0 1, pt + V2 0 (-1)] `S.intersection` remainingPoints
-        horizontalNeighbours = S.fromList [pt + V2 1 0, pt + V2 (-1) 0] `S.intersection` remainingPoints
-        newRemainingPoints = S.delete pt remainingPoints
+    neighboursInDirection = S.map (+ direction) region & (`S.difference` region)
+    groupByDimension = if isVertical direction then (^. _y) else (^. _x)
+    grouped = associateBy groupByDimension neighboursInDirection
+    countSidesForGroup pts =
+      let xs = sort $ map (\(V2 x y) -> if isVertical direction then x else y) pts
+       in window2 xs
+            & filter (\(a, b) -> b - a > 1)
+            & length
+            & (+ 1) -- There is always at least one
 
-{-
- - Finding the number of sides
- - 1. find all the points outside of the region (including duplicates). Call this oRegion
- - 2. Pick a point. Expand either Horizontally or Vertically using points in oRegion (bomb out if you can do both, this should never happen)
- - 3. Keep expanding until you can't anymore. You've found a side.
- - 4. Pick another point and repeat
- -}
+countSides :: Region -> Int
+countSides region =
+  allOrthogonalDirections
+    & map (countSidesForDirection region)
+    & sum
+
+isVertical :: V2 Int -> Bool
+isVertical (V2 x y) = x == 0
