@@ -608,3 +608,17 @@ Pointer: 17
 Output: [6,1,5,2,7,1,5,3,1]
 
 [1,3,5,1,7,2,5,1,6]
+
+
+
+- Mod 8 Reg A -> B
+- XOR Reg B with 3 -> B
+- Divide Reg A by 2^Reg B -> C
+- XOR B with C -> B
+- Divide Reg A by 8 -> A
+- XOR B with 5 -> B
+- Output B mod 8
+- Jump to beginning
+
+
+On first run, B must become X where X `mod` 8 = 2

@@ -25,7 +25,11 @@ import qualified Data.Sequence as Seq
 import Debug.Trace (trace, traceM, traceShowM)
 import Text.Printf (printf)
 import Text.Trifecta (CharParsing (string), Parser, alphaNum, commaSep, integer, letter, some, upper)
-import Data.Foldable (Foldable(toList))
+import Data.Foldable (Foldable(toList, foldl'))
+import qualified Data.Map as M
+import Data.List (isPrefixOf, isSuffixOf)
+import Common.BinaryUtils
+import Control.Monad (guard)
 
 type ThreeBit = Finite 8
 
@@ -37,7 +41,7 @@ data Computer = MkComputer
     _cReg :: !Integer,
     _program :: !(Seq.Seq ThreeBit),
     _pointer :: !Int,
-    _output :: ![ThreeBit]
+    _output :: ![Integer]
   }
   deriving (Eq)
 
@@ -48,13 +52,12 @@ instance Show Computer where
     (_aReg c) (_bReg c) (_cReg c) showProgram (_pointer c) showOutput
     where
       showProgram = show $ map getFinite $ toList $ c ^. program
-      showOutput = show $ map getFinite $ toList $ c ^. output
+      showOutput = show $ toList $ c ^. output
 
 aoc17 :: IO ()
 aoc17 = do
   printSolutions 17 $ MkAoCSolution parseInput part1
-
--- printSolutions 17 $ MkAoCSolution parseInput part2
+  printSolutions 17 $ MkAoCSolution parseInput part2
 
 parseInput :: Parser Computer
 parseInput = do
@@ -68,11 +71,45 @@ parseRegister = do
   string "Register " >> upper >> string ": "
   integer
 
-part1 = getOutput . runUntilNothing step 
+part1 = runComplete
+
+part2 = solve
+
+{- For my input, the least 3 significant bits produces some output, and then the program repeats having
+-- removed those three bits.
+-- The program will also look at 3 other bits that are more significant depending on what the `xor` with 3
+-- of these three bits is (ie, if the xor of the 3 bits is 7, it will remove 7 bits from the end and use
+-- the 3 new most significants bits to influence the output).
+--
+-- That means we need fold over the target output (the program) and proces 3 bits at a time from the end.
+-- We'll keep any which match our output and then continue.
+-- -}
+solve :: Computer -> Integer
+solve computer = minimum $ foldl' go [0] target
+  where
+    target = reverse $ map getFinite . toList $ computer ^. program
+    go nums singleOutput = do
+      n <- nums
+      a <- [0..7]
+      let next = n * 8 + a --Shift n to the left by 3 bits and add a (the next 3 bits)
+      let result = runComplete $ computer & aReg .~ next
+      guard $ head result == singleOutput
+      pure next
+
+
+runComplete :: Computer -> [Integer]
+runComplete = getOutput . runUntilNothing step
+
+-- | Map of desired output to a list of fst, snd and distance
+combos :: M.Map Integer [(Integer, Integer, Integer)]
+combos = undefined
+  where
+    prs :: [(Integer, Integer)] = [(a, b) | a <- [0 .. 7], b <- [0 .. 7]]
+    getResult a b = a `xor` b `xor` 5
+
 
 step :: Computer -> Maybe Computer
 step c = do
-  traceShowM c
   instr <- (c ^. program) Seq.!? (c ^. pointer)
   let opcode :: Opcode = toEnum $ fromIntegral $ getFinite instr
   let advancedC = c & pointer %~ (+ 1)
@@ -107,7 +144,7 @@ jnz c = do
   let a = c ^. aReg
   operand <- (c ^. program) Seq.!? (c ^. pointer)
   if a == 0
-    then pure $ c & pointer %~ (+ 2)
+    then pure $ c & pointer %~ (+ 1)
     else pure $ c & pointer .~ fromIntegral (getFinite operand)
 
 bxc :: Computer -> Maybe Computer
@@ -118,7 +155,7 @@ bxc c = do
 out :: Computer -> Maybe Computer
 out c = do
   comboOperand <- resolveComboOperand c
-  let result = finite $ comboOperand `mod` 8
+  let result = comboOperand `mod` 8
   pure $ c & output %~ (result :) & pointer %~ (+ 1)
 
 bdv :: Computer -> Maybe Computer
@@ -148,4 +185,4 @@ resolveComboOperand c = do
       | otherwise = error "Invalid operand"
 
 getOutput :: Computer -> [Integer]
-getOutput = map getFinite . reverse . _output
+getOutput = reverse . _output
