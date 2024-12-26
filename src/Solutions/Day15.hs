@@ -35,7 +35,8 @@ import Text.Trifecta (Parser)
 data WarehouseState = MkWarehouseState
   { _robot :: !(V2 Int),
     _walls :: !(S.Set (V2 Int)),
-    _crates :: !(S.Set (V2 Int))
+    _crates :: !(S.Set (V2 Int)),
+    _expanded :: !Bool
   }
   deriving (Eq, Show)
 
@@ -45,8 +46,8 @@ makeLenses ''WarehouseState
 
 aoc15 :: IO ()
 aoc15 = do
-  -- printSolutions 15 $ MkAoCSolution (parseInput False) part1
-  printSolutions 15 $ MkAoCSolution (parseInput True) part2
+  printTestSolutions 15 $ MkAoCSolution (parseInput False) part1
+  printTestSolutions 15 $ MkAoCSolution (parseInput True) part2
 
 parseInput :: Bool -> Parser (Grid Char, [V2 Int])
 parseInput expand = do
@@ -79,20 +80,16 @@ parseDirection = do
     'v' -> return $ unit _y
     _ -> fail "Invalid direction character"
 
-part1 input = traceLns rendered $ gpsChecksum solved
-  where
-    (grid, directions) = input
-    state = initState grid
-    solved = doMoves directions state
-    rendered = renderVectorMap $ stateToMap False solved
+part1 = solve False
 
-part2 input = gpsChecksum solved
+part2 = solve True
+
+solve :: Bool -> (Grid Char, [Direction]) -> Int
+solve expanded input = gpsChecksum solved
   where
     (grid, directions) = input
-    state = initState grid
+    state = initState expanded grid
     solved = doMoves directions state
-    rendered = renderVectorMap $ stateToMap True solved
-    g = gpsLocationOfExpandedCrate state (V2 5 1)
 
 findRobot :: Grid Char -> V2 Int
 findRobot grid =
@@ -100,8 +97,8 @@ findRobot grid =
     & M.keys
     & head
 
-initState :: Grid Char -> WarehouseState
-initState grid = MkWarehouseState robot walls crates
+initState :: Bool -> Grid Char -> WarehouseState
+initState expanded grid = MkWarehouseState robot walls crates expanded
   where
     robot = findRobot grid
     walls = M.keysSet $ M.filter (== '#') grid
@@ -115,7 +112,8 @@ moveRobot direction state = fromMaybe state (moveRobotMaybe direction state)
 
 moveRobotMaybe :: V2 Int -> WarehouseState -> Maybe WarehouseState
 moveRobotMaybe direction state = do
-  cratesToMove <- getCratesToMove2 direction state
+  let getCratesFunc = if state ^. expanded then getCratesToMoveExpanded else getCratesToMove
+  cratesToMove <- getCratesFunc direction state
   let newCrates =
         S.map
           ( \c ->
@@ -126,12 +124,12 @@ moveRobotMaybe direction state = do
           (state ^. crates)
   -- If the next space were a wall we'd have returned a Nothing already
   let newRobot = state ^. robot + direction
-  pure $ MkWarehouseState newRobot (state ^. walls) newCrates
+  pure $ MkWarehouseState newRobot (state ^. walls) newCrates (state ^. expanded)
 
-getCratesToMove :: V2 Int -> WarehouseState -> Maybe [V2 Int]
+getCratesToMove :: V2 Int -> WarehouseState -> Maybe (S.Set Point)
 getCratesToMove direction state = do
   let nextPos = state ^. robot + direction
-  unfoldrM go nextPos
+  S.fromList <$> unfoldrM go nextPos
   where
     go :: V2 Int -> Maybe (Maybe (V2 Int, V2 Int))
     go pt = do
@@ -140,8 +138,8 @@ getCratesToMove direction state = do
         then Just (Just (pt, pt + direction)) -- continue unfolding
         else Just Nothing -- Stop unfolding.
 
-getCratesToMove2 :: V2 Int -> WarehouseState -> Maybe (S.Set Point)
-getCratesToMove2 direction state = do
+getCratesToMoveExpanded :: V2 Int -> WarehouseState -> Maybe (S.Set Point)
+getCratesToMoveExpanded direction state = do
   let nextPos = state ^. robot + direction
   sets <- unfoldrM go $ S.singleton nextPos
   pure $ S.unions sets
@@ -169,8 +167,14 @@ nextCratePositions direction pts = case direction of
   V2 1 0 -> S.map (+ 2 * direction) pts
   _ -> error "Invalid direction"
 
-stateToMap :: Bool -> WarehouseState -> Grid Char
-stateToMap expanded (MkWarehouseState robot walls crates) =
+gpsChecksum :: WarehouseState -> Int
+gpsChecksum state =
+  state ^. crates
+    & S.map (\(V2 x y) -> x + y * 100)
+    & sum
+
+stateToMap :: WarehouseState -> Grid Char
+stateToMap (MkWarehouseState robot walls crates expanded) =
   if expanded
     then M.unions [wallMap, robotMap, cl, cr]
     else M.unions [wallMap, crateMap, robotMap]
@@ -180,35 +184,3 @@ stateToMap expanded (MkWarehouseState robot walls crates) =
     crateMap = M.fromSet (const 'O') crates
     cl = M.fromSet (const '[') crates
     cr = M.fromSet (const ']') $ S.map (\v -> v + V2 1 0) crates
-
-gpsChecksum :: WarehouseState -> Int
-gpsChecksum state =
-  state ^. crates
-    & S.map (\(V2 x y) -> x + y * 100)
-    & sum
-
-expandedGpsChecksum :: WarehouseState -> Int
-expandedGpsChecksum state =
-  state ^. crates
-    & S.map (\pt -> let (V2 x y) = gpsLocationOfExpandedCrate state pt
-                    in x + y * 100
-            )
-    & sum
-
-gpsLocationOfExpandedCrate :: WarehouseState -> Point -> Point
-gpsLocationOfExpandedCrate state (V2 leftX topY) = V2 x y
-  where
-    maxX = maximum $ S.map (^. _x) (state ^. walls)
-    maxY = maximum $ S.map (^. _y) (state ^. walls)
-    rightX = maxX - leftX + 1
-    bottomY = maxY - topY
-    x = min leftX rightX
-    y = min topY bottomY
-
-directionToString :: V2 Int -> String
-directionToString v = case v of
-  V2 0 (-1) -> "^"
-  V2 0 1 -> "v"
-  V2 (-1) 0 -> "<"
-  V2 1 0 -> ">"
-  _ -> "?"
