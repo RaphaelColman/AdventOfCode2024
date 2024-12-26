@@ -37,13 +37,14 @@ parseInput = do
 parseTowels :: Parser [String]
 parseTowels = commaSep $ some letter
 
-part1 (towels, patterns) = length $ filter (> 0) counts
-  where
-    counts = map (countPatterns towels) patterns
+part1 :: ([String], [String]) -> Int
+part1  = length . filter (> 0) . solve
 
-part2 (towels, patterns) = sum counts
-  where
-    counts = map (countPatterns towels) patterns
+part2 :: ([String], [String]) -> Integer
+part2 = sum . solve
+
+solve :: ([String], [String]) -> [Integer]
+solve (towels, patterns) = map (countPatterns towels) patterns
 
 placeTowel :: String -> String -> Maybe String
 placeTowel pattern towel
