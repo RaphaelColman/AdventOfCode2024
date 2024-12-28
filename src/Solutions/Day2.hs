@@ -1,4 +1,3 @@
-{-# LANGUAGE RecordWildCards #-}
 module Solutions.Day2
     ( aoc2
     ) where
