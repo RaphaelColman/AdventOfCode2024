@@ -68,12 +68,9 @@ bestInputMemoized level input
 
 complexity :: Integer -> String -> State Cache Integer
 complexity numberOfRobots code = do
-  let numPart :: Integer = read $ takeWhile isDigit code
   dirpath <- bestInputMemoized numberOfRobots code
   let codeAsInteger :: Integer =  read $ takeWhile isDigit code
   pure $ codeAsInteger * toInteger dirpath
-  where
-    numPart :: Integer = read $ takeWhile isDigit code
 
 --- Static stuff to make maps and grids easier
 

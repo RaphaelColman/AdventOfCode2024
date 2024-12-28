@@ -16,7 +16,9 @@ import Common.Debugging
 import Common.EnumUtils (enumNext)
 import Common.Floyd (CycleData, hareAndTortoiseM)
 import Common.Geometry (Grid, Point, enumerateMultilineStringToVectorMap, renderVectorMap, renderVectorSet)
-import Control.Lens ((^.), makeLenses)
+import Control.Lens (makeLenses, (^.))
+import Control.Monad.RWS (MonadState (state))
+import Control.Parallel.Strategies (parList, parMap, rdeepseq, using)
 import Data.Foldable (maximumBy)
 import Data.Function (on)
 import Data.List
@@ -48,7 +50,7 @@ makeLenses ''State
 
 aoc6 :: IO ()
 aoc6 = do
-  --printSolutions 6 $ MkAoCSolution parseInput part1
+  printSolutions 6 $ MkAoCSolution parseInput part1
   printSolutions 6 $ MkAoCSolution parseInput part2
 
 parseInput :: Parser (Grid Char)
@@ -59,11 +61,11 @@ part1 input = numberOfDistinctGuardPositions $ runMachine state
   where
     state = initState input
 
--- Dang this goes forever at the moment
-part2 input =  length $ filter (hasCycle . addObstacleToState state) newObstacles
+part2 input = cycleStates
   where
     state = initState input
     newObstacles = nub $ map _guard $ runMachine state
+    cycleStates = length $ filter id $ parMap rdeepseq (hasCycle . addObstacleToState state) newObstacles
 
 initState :: Grid Char -> State
 initState grid = MkState guard North obstacles (V2 xMax yMax)
@@ -114,32 +116,19 @@ directionToUnitVector South = unit _y
 directionToUnitVector East = unit _x
 directionToUnitVector West = -(unit _x)
 
-stepStateAndCheckInBounds :: State -> Maybe State
-stepStateAndCheckInBounds state =
-  let newState = stepState state
-   in if isInBounds newState then Just newState else Nothing
-
 hasCycle :: State -> Bool
-hasCycle s = go (S.singleton s) s
+hasCycle s = go (S.singleton (stateToTuple s)) s
   where
-    go states current = let next = stepStateAndCheckInBounds current
-                        in case next of
-                          Nothing -> False
-                          Just n -> S.member n states || go (S.insert n states) n
-
-
-renderState :: State -> String
-renderState MkState {..} = rendered
-  where
-    guardChar = case _direction of
-      North -> '^'
-      South -> 'v'
-      East -> '>'
-      West -> '<'
-    gridMap = M.fromList [(_guard, guardChar)]
-    allObstacles = M.fromSet (const '#') _obstacles
-    allPoints = M.union gridMap allObstacles
-    rendered = renderVectorMap allPoints
+    stateToTuple s = (_guard s, _direction s)
+    go states current
+      | not inBounds = False
+      | isTurn && stateToTuple next `S.member` states = True
+      | isTurn = go (S.insert (stateToTuple next) states) next
+      | otherwise = go states next
+      where
+        next = stepState current
+        isTurn = next ^. direction /= current ^. direction
+        inBounds = isInBounds next
 
 addObstacleToState :: State -> Point -> State
 addObstacleToState s@MkState {..} loc = s {_obstacles = S.insert loc _obstacles}
