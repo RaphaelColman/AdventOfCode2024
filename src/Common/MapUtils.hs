@@ -48,3 +48,6 @@ instance (Semigroup a) => Semigroup (MonoidIntMap a) where
 
 associateBy :: (Ord b, Foldable f) => (a -> b) -> f a -> M.Map b [a]
 associateBy fn xs = M.fromListWith (++) $ map (\a -> (fn a, [a])) $ toList xs
+
+flipMap :: (Ord a, Ord b) => M.Map a b -> M.Map b [a]
+flipMap = M.foldrWithKey (\k v acc -> M.insertWith (++) v [k] acc) M.empty

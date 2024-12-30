@@ -82,7 +82,4 @@ tokenCost :: Integer -> Integer -> Integer
 tokenCost a b = 3 * a + b
 
 modifyTarget :: Integer -> Machine -> Machine
-modifyTarget amount machine =
-  machine
-    & (prizeLocation . _x) %~ (+ amount)
-    & (prizeLocation . _y) %~ (+ amount)
+modifyTarget amount machine = machine & prizeLocation %~ (+ V2 amount amount)

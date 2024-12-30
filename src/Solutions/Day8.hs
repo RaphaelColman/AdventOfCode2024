@@ -1,5 +1,3 @@
-{-# LANGUAGE TupleSections #-}
-
 module Solutions.Day8
   ( aoc8,
   )
@@ -12,7 +10,15 @@ import Common.AoCSolutions
     printTestSolutions,
   )
 import Common.Geometry
+  ( Grid,
+    Point,
+    enumerateMultilineStringToVectorMap,
+    gridSize,
+    simplify,
+  )
+import Common.MapUtils (flipMap)
 import qualified Data.Map as M
+import Data.Range (inRange, (+=+))
 import qualified Data.Set as S
 import Linear.V2 (V2 (V2))
 import Text.Parser.Char (anyChar)
@@ -32,41 +38,33 @@ parseInput = do
 part1 input = length restrictedAntinodes
   where
     allAntinodes = findAllAntinodes $ findAntennaLocations input
-    (V2 maxX maxY) = gridSize input
-    restrictedAntinodes = S.filter (\(V2 x y) -> x >= 0 && y >= 0 && x <= maxX && y <= maxY) allAntinodes
+    restrictedAntinodes = S.filter (inBounds (gridSize input)) allAntinodes
 
 part2 input = length antiNodes
   where
     antennaLocations = findAntennaLocations input
     bounds = gridSize input
-    antiNodes = S.fromList $ concat $ M.elems $ M.map (calculateAntinodes' bounds) antennaLocations
+    antiNodes = S.fromList $ concat $ M.elems $ M.map (calculateAntinodes bounds) antennaLocations
 
 findAntennaLocations :: M.Map Point Char -> AntennaLocations
-findAntennaLocations grid = M.fromList $ map getPts $ S.toList distinctChars
-  where
-    distinctChars = S.delete '.' $ S.fromList $ M.elems grid
-    getPts c = (c,) $ M.keys $ M.filter (== c) grid
+findAntennaLocations grid = flipMap $ M.filter (/= '.') grid
 
-calculateAntinodes :: [Point] -> [Point]
-calculateAntinodes points = concatMap antinodesForPair allPairs
-  where
-    allPairs = map (\[a, b] -> (a, b)) $ tuples 2 points
-    antinodesForPair (a, b) =
-      let diff = b - a
-       in [b + diff, a - diff]
+calculateImmediateAntinodes :: [Point] -> [Point]
+calculateImmediateAntinodes points = do
+  (a, b) <- map (\[a, b] -> (a, b)) $ tuples 2 points
+  let diff = b - a
+  [b + diff, a - diff]
 
 findAllAntinodes :: AntennaLocations -> S.Set Point
-findAllAntinodes al = S.fromList $ concat $ M.elems $ M.map calculateAntinodes al
+findAllAntinodes al = S.fromList $ concat $ M.elems $ M.map calculateImmediateAntinodes al
 
-calculateAntinodes' :: Point -> [Point] -> [Point]
-calculateAntinodes' bounds points = concatMap antinodesForPair allPairs
-  where
-    allPairs = map (\[a, b] -> (a, b)) $ tuples 2 points
-    antinodesForPair (a, b) = plusses ++ minuses
-      where
-        diff = simplify $ b - a
-        plusses = takeWhile (inBounds bounds) $ iterate (+ diff) b
-        minuses = takeWhile (inBounds bounds) $ iterate (subtract diff) a
+calculateAntinodes :: Point -> [Point] -> [Point]
+calculateAntinodes bounds points = do
+  (a, b) <- map (\[a, b] -> (a, b)) $ tuples 2 points
+  let diff = simplify $ b - a
+  let plusses = takeWhile (inBounds bounds) $ iterate (+ diff) b
+  let minuses = takeWhile (inBounds bounds) $ iterate (subtract diff) a
+  plusses ++ minuses
 
 inBounds :: Point -> Point -> Bool
-inBounds (V2 maxX maxY) (V2 x y) = x >= 0 && y >= 0 && x <= maxX && y <= maxY
+inBounds (V2 maxX maxY) (V2 x y) = 0 +=+ maxX `inRange` x && 0 +=+ maxY `inRange` y
